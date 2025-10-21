@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafo Interactivo de Eventos Musicales</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+</head>
+<body>
+    <h1>Grafo Interactivo de Eventos Musicales</h1>
+    <div id="search-container">
+        <h2>Filtros de Búsqueda</h2>
+        <form id="search-form">
+            <label for="name_q">Nombre del Evento:</label>
+            <input type="text" id="name_q" name="name_q"><br>
+
+            <label for="composer_q">Apellido del Compositor:</label>
+            <input type="text" id="composer_q" name="composer_q"><br>
+
+            <label for="participant_q">Apellido del Participante:</label>
+            <input type="text" id="participant_q" name="participant_q"><br>
+
+            <label for="piece_q">Nombre de la Obra:</label>
+            <input type="text" id="piece_q" name="piece_q"><br>
+
+            <label for="activity_q">Actividad (ej. Piano):</label>
+            <input type="text" id="activity_q" name="activity_q"><br>
+
+            <label for="gender_q">Género:</label>
+            <input type="text" id="gender_q" name="gender_q"><br>
+
+            <label for="year">Año(s) (separados por coma):</label>
+            <input type="text" id="year" name="year"><br>
+
+            <label for="city_id">ID de Ciudad(es) (separados por coma):</label>
+            <input type="text" id="city_id" name="city_id"><br>
+
+            <button type="submit">Buscar y Generar Grafo</button>
+        </form>
+    </div>
+    <div id="cy"></div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
