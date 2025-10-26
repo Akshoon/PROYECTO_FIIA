@@ -1,28 +1,112 @@
-# TODO: Implementar Grafo Interactivo Similar a Nodegoat
+# TODO - Proyecto Grafo Interactivo de Eventos Musicales
 
-## Información Recopilada
-- API externa: http://basedeconciertos.uahurtado.cl:5099/api/status/get_params?full_content=true para contexto, /api/events para consultas.
-- Parámetros de búsqueda: name_q, composer_q, participant_q, piece_q, activity_q, gender_q, y filtros por ID como year, city_id, etc.
-- Estructura de datos: Eventos con relaciones a compositores, participantes, ciudades, instrumentos, etc.
-- Librería de visualización: Cytoscape.js para grafo interactivo.
-- Relaciones en grafo: Conectar entidades como eventos a compositores, participantes, ciudades, obras, etc., para mostrar conexiones.
+## ✅ Cambios Completados - Actualización Visual del Grafo con Filtros Avanzados
 
-## Plan de Implementación
-1. [x] Instalar dependencias necesarias (requests para llamadas API).
-2. [x] Crear endpoint en Flask (/api/graph_data) para consultar API externa y procesar datos en formato JSON para grafo (nodos y edges).
-3. [x] Actualizar template HTML (index.html) para incluir Cytoscape.js, elementos de búsqueda (inputs para filtros) y contenedor del grafo.
-4. [x] Crear lógica en JS (script.js) para:
-   - Enviar consultas al endpoint Flask basado en filtros.
-   - Construir grafo con Cytoscape.js (nodos para entidades, edges para relaciones).
-   - Hacer grafo interactivo (zoom, drag, click para detalles).
-5. [x] Actualizar CSS (style.css) para estilizar la interfaz de búsqueda y grafo.
-6. [x] Probar integración: Ejecutar app, realizar búsquedas, verificar grafo se actualiza correctamente (app corriendo en http://127.0.0.1:5000, página cargada correctamente).
+### 1. Actualización de la Interfaz de Usuario (HTML)
+- [x] Agregada barra de búsqueda en el grafo
+- [x] Agregada leyenda con tipos de nodos y colores
+- [x] Agregados controles de zoom (+, -, ajustar)
+- [x] Agregado panel de estadísticas
+- [x] Reemplazado slider de timeline por selector de año simple
+- [x] Agregada sección completa de filtros avanzados:
+  - Filtro por año (dropdown)
+  - Filtro por compositor (input text)
+  - Filtro por participante (input text)
+  - Filtro por obra (input text)
+  - Filtro por evento (input text)
+  - Filtro por ciudad (input text)
+  - Selector de límite de eventos (100-1000)
+  - Botón "Limpiar Filtros"
 
-## Dependencias
-- requests (para Python, llamadas API).
-- Cytoscape.js (CDN en HTML).
+### 2. Actualización de Estilos (CSS)
+- [x] Cambiado fondo del grafo a color claro (#f8f9fa)
+- [x] Estilizada barra de búsqueda flotante
+- [x] Estilizada leyenda con colores de nodos
+- [x] Estilizados controles de zoom circulares
+- [x] Estilizado panel de estadísticas
+- [x] Actualizados estilos para selector de año (removido timeline slider)
+- [x] Agregados estilos para sección de filtros avanzados
 
-## Followup Steps
-- Después de implementación, probar con datos reales del API.
-- Si hay errores, depurar llamadas API o lógica de grafo.
-- Posiblemente agregar más filtros o personalizaciones basadas en feedback.
+### 3. Actualización de Funcionalidad (JavaScript)
+- [x] Actualizado esquema de colores de nodos a tonos grises:
+  - Evento: Gris oscuro (#34495e)
+  - Obra: Gris medio (#7f8c8d)
+  - Persona (Compositor/Participante): Gris claro (#95a5a6)
+  - Ciudad: Gris muy claro (#bdc3c7)
+- [x] Implementado tamaño dinámico de nodos basado en conexiones
+- [x] Implementada funcionalidad de búsqueda con resaltado
+- [x] Implementados controles de zoom (acercar, alejar, ajustar)
+- [x] Implementado cálculo y visualización de estadísticas
+- [x] Simplificado estilo de nodos (sin gradientes pesados)
+- [x] Reemplazada funcionalidad de timeline slider por selector de año simple
+- [x] Agregada población automática del dropdown de años
+- [x] Actualizado evento de carga para usar selector de año
+- [x] Implementada funcionalidad completa de filtros avanzados:
+  - Mapeo de filtros del frontend a parámetros de API
+  - Envío de parámetros específicos (composer_q, participant_q, piece_q, name_q, city_q)
+  - Integración con límite de eventos configurable
+  - Función de limpiar filtros que resetea todos los campos
+
+### 4. Actualización del Backend (Flask)
+- [x] Agregado soporte para parámetro 'city_q' en la API
+- [x] Mantenida compatibilidad con todos los parámetros existentes
+
+## 📋 Características Implementadas
+
+### Barra de Búsqueda
+- Búsqueda en tiempo real de nodos
+- Resalta nodos coincidentes y sus conexiones
+- Atenúa elementos no relacionados
+
+### Leyenda
+- Muestra tipos de nodos con colores correspondientes
+- Posicionada en la esquina superior derecha (ajustada para evitar conflicto con filtros)
+
+### Controles de Zoom
+- Botón + para acercar
+- Botón - para alejar
+- Botón ⊡ para ajustar vista
+- Reposicionados para evitar conflicto con filtros
+
+### Panel de Estadísticas
+- Cuenta total de nodos
+- Cuenta total de enlaces
+- Desglose por tipo de nodo
+- Actualización automática al cargar datos
+- Agregado cálculo de grado promedio
+
+### Selector de Año (Reemplazado)
+- Dropdown simple para seleccionar un año específico
+- Opción "Todos los años" para ver datos completos
+- Botón "Cargar Datos" para aplicar filtro
+
+### Filtros Avanzados
+- Layout horizontal con scroll horizontal en móviles
+- Grupos de filtros con ancho mínimo de 150px
+- Campos de entrada para compositor, participante, obra, evento, ciudad
+- Selector de límite de eventos (100-1000)
+- Botón "Limpiar Filtros" que resetea todos los campos
+
+## 🎨 Mejoras Visuales
+
+1. **Nodos más limpios**: Forma circular, colores sólidos sin gradientes
+2. **Fondo claro**: Mejor contraste y legibilidad
+3. **Tamaño dinámico**: Nodos más grandes para elementos con más conexiones
+4. **Bordes sutiles**: Bordes blancos de 2px para definición
+5. **Transiciones suaves**: Animaciones de 0.3s para interacciones
+
+## 🔄 Próximos Pasos Sugeridos
+
+- [ ] Agregar exportación de grafo como imagen
+- [ ] Implementar filtros adicionales por tipo de nodo
+- [ ] Agregar tooltips informativos al pasar el mouse
+- [ ] Implementar diferentes algoritmos de layout
+- [ ] Agregar modo oscuro/claro
+- [ ] Optimizar rendimiento para grafos grandes
+
+## 📝 Notas
+
+- El selector de año reemplaza completamente el timeline slider
+- Los colores se cambiaron a tonos grises para un aspecto más profesional
+- La búsqueda no distingue entre mayúsculas/minúsculas
+- Las estadísticas se actualizan automáticamente al cargar nuevos datos

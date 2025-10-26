@@ -9,37 +9,127 @@
 </head>
 <body>
     <h1>Grafo Interactivo de Eventos Musicales</h1>
-    <div id="search-container">
-        <h2>Filtros de Búsqueda</h2>
-        <form id="search-form">
-            <label for="name_q">Nombre del Evento:</label>
-            <input type="text" id="name_q" name="name_q"><br>
-
-            <label for="composer_q">Apellido del Compositor:</label>
-            <input type="text" id="composer_q" name="composer_q"><br>
-
-            <label for="participant_q">Apellido del Participante:</label>
-            <input type="text" id="participant_q" name="participant_q"><br>
-
-            <label for="piece_q">Nombre de la Obra:</label>
-            <input type="text" id="piece_q" name="piece_q"><br>
-
-            <label for="activity_q">Actividad (ej. Piano):</label>
-            <input type="text" id="activity_q" name="activity_q"><br>
-
-            <label for="gender_q">Género:</label>
-            <input type="text" id="gender_q" name="gender_q"><br>
-
-            <label for="year">Año(s) (separados por coma):</label>
-            <input type="text" id="year" name="year"><br>
-
-            <label for="city_id">ID de Ciudad(es) (separados por coma):</label>
-            <input type="text" id="city_id" name="city_id"><br>
-
-            <button type="submit">Buscar y Generar Grafo</button>
-        </form>
+    
+    <!-- Graph Container with Controls -->
+    <div id="graph-wrapper">
+        <!-- Search Bar -->
+        <div id="graph-search-bar">
+            <input type="text" id="graph-search-input" placeholder="🔍 Buscar en el grafo...">
+            <button id="search-btn" class="search-btn">Buscar</button>
+        </div>
+        
+        <!-- Legend -->
+        <div id="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #34495e;"></span>
+                <span class="legend-label">Evento</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #7f8c8d;"></span>
+                <span class="legend-label">Obra</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #95a5a6;"></span>
+                <span class="legend-label">Persona</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #bdc3c7;"></span>
+                <span class="legend-label">Ciudad</span>
+            </div>
+        </div>
+        
+        <!-- Zoom Controls -->
+        <div id="zoom-controls">
+            <button id="zoom-in" class="zoom-btn" title="Acercar">+</button>
+            <button id="zoom-out" class="zoom-btn" title="Alejar">−</button>
+            <button id="zoom-fit" class="zoom-btn" title="Ajustar">⊡</button>
+        </div>
+        
+        <!-- Statistics Panel -->
+        <div id="stats-panel">
+            <h3>Estadísticas</h3>
+            <div class="stat-item">
+                <span class="stat-label">Nodos:</span>
+                <span class="stat-value" id="stat-nodes">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Enlaces:</span>
+                <span class="stat-value" id="stat-edges">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Eventos:</span>
+                <span class="stat-value" id="stat-events">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Obras:</span>
+                <span class="stat-value" id="stat-pieces">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Personas:</span>
+                <span class="stat-value" id="stat-persons">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Ciudades:</span>
+                <span class="stat-value" id="stat-cities">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Grado promedio:</span>
+                <span class="stat-value" id="stat-degree">0</span>
+            </div>
+        </div>
+        
+        <!-- Cytoscape Graph Container -->
+        <div id="cy"></div>
     </div>
-    <div id="cy"></div>
+    
+    <!-- Filters Section -->
+    <div id="filters-container">
+        <div id="filters-controls">
+            <div class="filter-group">
+                <label for="year-select" class="filter-label">Año:</label>
+                <select id="year-select" class="filter-select"></select>
+            </div>
+
+            <div class="filter-group">
+                <label for="composer-search" class="filter-label">Compositor:</label>
+                <input type="text" id="composer-search" class="filter-input" placeholder="Buscar compositor...">
+            </div>
+
+            <div class="filter-group">
+                <label for="participant-search" class="filter-label">Participante:</label>
+                <input type="text" id="participant-search" class="filter-input" placeholder="Buscar participante...">
+            </div>
+
+            <div class="filter-group">
+                <label for="piece-search" class="filter-label">Obra:</label>
+                <input type="text" id="piece-search" class="filter-input" placeholder="Buscar obra...">
+            </div>
+
+            <div class="filter-group">
+                <label for="event-search" class="filter-label">Evento:</label>
+                <input type="text" id="event-search" class="filter-input" placeholder="Buscar evento...">
+            </div>
+
+            <div class="filter-group">
+                <label for="city-search" class="filter-label">Ciudad:</label>
+                <input type="text" id="city-search" class="filter-input" placeholder="Buscar ciudad...">
+            </div>
+
+            <div class="filter-group">
+                <label for="limit-select" class="filter-label">Límite de eventos:</label>
+                <select id="limit-select" class="filter-select">
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500" selected>500</option>
+                    <option value="1000">1000</option>
+                </select>
+            </div>
+
+            <button id="load-btn" class="load-btn">Cargar Datos</button>
+            <button id="clear-btn" class="clear-btn">Limpiar Filtros</button>
+        </div>
+    </div>
+    
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
