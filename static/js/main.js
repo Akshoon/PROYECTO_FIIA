@@ -43,7 +43,9 @@
             participantSearch: document.getElementById('participant-search'),
             pieceSearch: document.getElementById('piece-search'),
             eventSearch: document.getElementById('event-search'),
-            citySearch: document.getElementById('city-search'),
+            locationSearch: document.getElementById('location-search'),
+            activitySearch: document.getElementById('activity-search'),
+            genderSelect: document.getElementById('gender-select'),
             limitSelect: document.getElementById('limit-select'),
             loadBtn: document.getElementById('load-btn'),
             monthlyBtn: document.getElementById('monthly-btn'),
@@ -149,6 +151,7 @@
 
     function handleLoadClick() {
         const filters = getFilters();
+        console.log('Load clicked with filters:', filters);
         
         if (graphData.nodes && graphData.nodes.length > 0) {
             filterGraphData(filters);
@@ -197,6 +200,8 @@
         if (elements.pieceSearch) elements.pieceSearch.value = '';
         if (elements.eventSearch) elements.eventSearch.value = '';
         if (elements.citySearch) elements.citySearch.value = '';
+        if (elements.activitySearch) elements.activitySearch.value = '';
+        if (elements.genderSelect) elements.genderSelect.value = '';
         if (elements.limitSelect) elements.limitSelect.value = '500';
         
         if (graphData.nodes && graphData.nodes.length > 0) {
@@ -206,13 +211,15 @@
 
     function getFilters() {
         return {
-            year: elements.yearSelect?.value || '',
-            composer_q: elements.composerSearch?.value.trim() || '',
-            participant_q: elements.participantSearch?.value.trim() || '',
-            piece_q: elements.pieceSearch?.value.trim() || '',
-            name_q: elements.eventSearch?.value.trim() || '',
-            city_q: elements.citySearch?.value.trim() || '',
-            limit: parseInt(elements.limitSelect?.value || '500')
+            year: (elements.yearSelect && elements.yearSelect.value) || '',
+            composer_q: (elements.composerSearch && elements.composerSearch.value && elements.composerSearch.value.trim()) || '',
+            participant_q: (elements.participantSearch && elements.participantSearch.value && elements.participantSearch.value.trim()) || '',
+            piece_q: (elements.pieceSearch && elements.pieceSearch.value && elements.pieceSearch.value.trim()) || '',
+            name_q: (elements.eventSearch && elements.eventSearch.value && elements.eventSearch.value.trim()) || '',
+            city_q: (elements.citySearch && elements.citySearch.value && elements.citySearch.value.trim()) || '',
+            activity_q: (elements.activitySearch && elements.activitySearch.value && elements.activitySearch.value.trim()) || '',
+            gender_q: (elements.genderSelect && elements.genderSelect.value) || '',
+            limit: parseInt((elements.limitSelect && elements.limitSelect.value) || '500') || 500
         };
     }
 
@@ -233,8 +240,12 @@
             return;
         }
         
+        // Ensure filters is an object with default values
+        filters = filters || {};
+        
         const hasFilters = filters.year || filters.composer_q || filters.participant_q || 
-                          filters.piece_q || filters.name_q || filters.city_q;
+                          filters.piece_q || filters.name_q || filters.city_q ||
+                          filters.activity_q || filters.gender_q;
         
         if (!hasFilters) {
             renderGraph(graphData.nodes, graphData.links);
@@ -386,11 +397,11 @@
             // Initialize Sigma
             sigma = new Sigma(currentGraph, elements.sigmaContainer, {
                 renderLabels: true,
-                labelRenderedSizeThreshold: 6,  // Reducir umbral para mostrar más etiquetas
+                labelRenderedSizeThreshold: 8,
                 labelFont: 'Inter, Arial, sans-serif',
-                labelSize: 13,  // Aumentar tamaño de fuente
-                labelWeight: '700',  // Hacer texto más grueso
-                labelColor: { color: '#ffffff' },  // Color blanco puro
+                labelSize: 11,
+                labelWeight: '500',
+                labelColor: { color: '#e7e9ea' },
                 minCameraRatio: 0.1,
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
@@ -556,67 +567,17 @@
 
     function setupSigmaInteractions() {
         if (!sigma || !currentGraph) return;
-        
-        // Obtener el elemento del tooltip
-        const tooltip = document.getElementById('node-tooltip');
-        if (!tooltip) {
-          console.warn('Tooltip element not found');
-          return;
-        }
-        
-        const tooltipLabel = tooltip.querySelector('.tooltip-label');
-        const tooltipType = tooltip.querySelector('.tooltip-type');
-        const tooltipDegree = tooltip.querySelector('.tooltip-degree');
-      
-        // Click en nodo
+
         sigma.on('clickNode', ({ node }) => {
-          const attrs = currentGraph.getNodeAttributes(node);
-          const degree = currentGraph.degree(node);
-          alert(`${attrs.label}\n${attrs.nodeType}\nConexiones: ${degree}`);
+            const attrs = currentGraph.getNodeAttributes(node);
+            const degree = currentGraph.degree(node);
+            alert(`${attrs.label}\n\nTipo: ${attrs.nodeType}\nConexiones: ${degree}`);
         });
-      
-        // Hover sobre nodo - mostrar tooltip
-        sigma.on('enterNode', ({ node, event }) => {
-          if (!tooltip || !currentGraph) return;
-          
-          const attrs = currentGraph.getNodeAttributes(node);
-          const degree = currentGraph.degree(node);
-          
-          // Actualizar contenido del tooltip
-          if (tooltipLabel) tooltipLabel.textContent = attrs.label || 'Sin nombre';
-          if (tooltipType) tooltipType.textContent = attrs.nodeType || 'unknown';
-          if (tooltipDegree) tooltipDegree.textContent = `Conexiones: ${degree}`;
-          
-          // Posicionar el tooltip
-          const x = event.x + 15;
-          const y = event.y + 15;
-          tooltip.style.left = `${x}px`;
-          tooltip.style.top = `${y}px`;
-          tooltip.classList.add('visible');
-          
-          // Resaltar nodo
-          highlightNode(node);
-        });
-      
-        // Mouse se mueve sobre el canvas (actualizar posición del tooltip)
-        sigma.on('mousemove', ({ event }) => {
-          if (tooltip && tooltip.classList.contains('visible')) {
-            const x = event.x + 15;
-            const y = event.y + 15;
-            tooltip.style.left = `${x}px`;
-            tooltip.style.top = `${y}px`;
-          }
-        });
-      
-        // Salir del nodo - ocultar tooltip
-        sigma.on('leaveNode', () => {
-          if (tooltip) {
-            tooltip.classList.remove('visible');
-          }
-          resetHighlight();
-        });
-      }
-      
+
+        sigma.on('enterNode', ({ node }) => highlightNode(node));
+        sigma.on('leaveNode', () => resetHighlight());
+    }
+
     function highlightNode(nodeId) {
         if (!currentGraph) return;
         

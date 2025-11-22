@@ -807,9 +807,9 @@ a {
     stroke-width: 2px;
   }
 
-  /* Tooltip personalizado para hover en nodos */
+/* Tooltip personalizado para hover en nodos */
 .node-tooltip {
-    position: absolute;
+    position: fixed;
     background: rgba(22, 27, 34, 0.98);
     border: 2px solid #3b82f6;
     border-radius: 8px;
@@ -819,36 +819,40 @@ a {
     font-weight: 600;
     pointer-events: none;
     z-index: 10000;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
     max-width: 300px;
     word-wrap: break-word;
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transform: translate(-50%, -120%);
   }
   
   .node-tooltip.visible {
-    display: block;
+    opacity: 1;
+    visibility: visible;
   }
   
   .tooltip-label {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: #ffffff;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
   
   .tooltip-type {
     font-size: 12px;
-    color: #9ca3af;
+    color: #3b82f6;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    font-weight: 600;
   }
   
   .tooltip-degree {
-    font-size: 12px;
-    color: #3b82f6;
-    margin-top: 6px;
+    font-size: 13px;
+    color: #9ca3af;
+    margin-top: 4px;
   }
-  
-  

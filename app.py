@@ -8,18 +8,38 @@ app = Flask(__name__)
 CORS(app)
 
 API_BASE_URL = "http://basedeconciertos.uahurtado.cl:5099/api"
+PARAMS_URL = "http://basedeconciertos.uahurtado.cl:5099/api/status/get_params"
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/api/get_params', methods=['GET'])
+def get_params():
+    """Fetch all available filter parameters from the API"""
+    try:
+        full_content = request.args.get('full_content', 'true')
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(f"{PARAMS_URL}?full_content={full_content}", headers=headers, timeout=30)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.RequestException as e:
+        print(f"Error fetching params: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/monthly_ingestion', methods=['GET'])
 def monthly_ingestion():
     print("Monthly ingestion endpoint called")
     try:
+        # First, fetch all available parameters
+        print("Fetching API parameters...")
+        api_params = fetch_api_params()
+        print(f"API params fetched: {list(api_params.keys()) if api_params else 'None'}")
+        
+        # Then fetch all events
         all_events = []
         page = 1
-        per_page = 1000
+        per_page = 100
 
         while True:
             try:
@@ -28,7 +48,7 @@ def monthly_ingestion():
                 response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=60)
                 response.raise_for_status()
                 data = response.json()
-                events = data.get('events', [])
+                events = data.get('events') or []
                 if not events:
                     break
                 all_events.extend(events)
@@ -38,21 +58,131 @@ def monthly_ingestion():
                 print(f"Error fetching page {page}: {e}")
                 break
 
-        params_data = extract_params_from_events(all_events)
+        print(f"Total events fetched: {len(all_events)}")
+        
+        # Extract params from events as fallback/supplement
+        print("Extracting params from events...")
+        try:
+            extracted_params = extract_params_from_events(all_events)
+            # Merge API params with extracted params
+            if api_params:
+                merged_params = merge_params(api_params, extracted_params)
+            else:
+                merged_params = extracted_params
+            print(f"Params ready: {len(merged_params.get('composers', []))} composers, {len(merged_params.get('cities', []))} cities")
+        except Exception as e:
+            print(f"Error extracting params: {e}")
+            import traceback
+            traceback.print_exc()
+            merged_params = api_params or {'composers': [], 'cities': [], 'instruments': [], 'event_types': [], 'cycles': [], 'premiere_types': []}
+
+        # Process events to graph
         print("Processing events into graph format...")
-        nodes, links = process_events_to_graph(all_events)
-        print(f"Graph complete: {len(nodes)} nodes, {len(links)} links")
+        try:
+            nodes, links = process_events_to_graph(all_events)
+            print(f"Graph complete: {len(nodes)} nodes, {len(links)} links")
+        except Exception as e:
+            print(f"Error processing graph: {e}")
+            import traceback
+            traceback.print_exc()
+            nodes, links = [], []
 
         return jsonify({
-            'params': params_data,
-            'events': all_events,
+            'params': merged_params,
+            'events': all_events[:1000],
             'nodes': nodes,
             'links': links,
+            'total_events': len(all_events),
             'timestamp': int(time.time() * 1000)
         })
     except Exception as e:
         print(f"Error in monthly ingestion: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify(get_fallback_data())
+
+def fetch_api_params():
+    """Fetch all available parameters from the API"""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        url = f"{PARAMS_URL}?full_content=true"
+        print(f"Fetching params from: {url}")
+        
+        response = requests.get(url, headers=headers, timeout=30)
+        print(f"Params response status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"Params request failed with status {response.status_code}")
+            return None
+            
+        data = response.json()
+        print(f"Params response type: {type(data)}")
+        print(f"Params response keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+        
+        # The API might return data directly or nested
+        params = {}
+        
+        if isinstance(data, dict):
+            # Check for direct format: {'composers': [...], 'cities': [...], ...}
+            direct_keys = ['composers', 'cities', 'instruments', 'event_types', 'cycles', 
+                          'premiere_types', 'locations', 'organizations', 'ensembles', 
+                          'genders', 'activities']
+            
+            for key in direct_keys:
+                if key in data:
+                    params[key] = data[key]
+                    print(f"Found {key}: {len(data[key]) if isinstance(data[key], list) else 'not a list'} items")
+            
+            # Check for nested 'parameters' format
+            if 'parameters' in data and isinstance(data['parameters'], list):
+                print(f"Found nested parameters: {len(data['parameters'])} items")
+                for param in data['parameters']:
+                    if isinstance(param, dict):
+                        param_name = param.get('name', '')
+                        if 'values' in param:
+                            params[param_name] = param['values']
+            
+            # If params is still empty, maybe the whole response is the params
+            if not params and data:
+                params = data
+                print("Using entire response as params")
+        
+        if params:
+            print(f"Successfully fetched params with keys: {list(params.keys())}")
+            return params
+        else:
+            print("No params found in response")
+            return None
+            
+    except requests.RequestException as e:
+        print(f"Request error fetching API params: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error fetching API params: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def merge_params(api_params, extracted_params):
+    """Merge API params with extracted params, preferring API params"""
+    merged = {}
+    
+    all_keys = set(list(api_params.keys()) + list(extracted_params.keys()))
+    
+    for key in all_keys:
+        api_values = api_params.get(key, [])
+        extracted_values = extracted_params.get(key, [])
+        
+        # Use API values if available, otherwise extracted
+        if api_values:
+            merged[key] = api_values
+        else:
+            merged[key] = extracted_values
+    
+    return merged
 
 def get_fallback_data():
     """Return fallback sample data when API fails"""
@@ -104,28 +234,58 @@ def extract_params_from_events(events):
     event_types, cycles, premiere_types = set(), set(), set()
 
     for event in events:
-        for piece in event.get('program', []):
-            for composer in piece.get('composers', []):
-                if composer and composer != 'Desconocido':
-                    composers.add(composer)
-            if piece.get('premiere_type'):
-                premiere_types.add(piece['premiere_type'])
+        if not event or not isinstance(event, dict):
+            continue
+            
+        # Process program/pieces
+        program = event.get('program')
+        if program and isinstance(program, list):
+            for piece in program:
+                if not piece or not isinstance(piece, dict):
+                    continue
+                    
+                # Get composers
+                piece_composers = piece.get('composers')
+                if piece_composers and isinstance(piece_composers, list):
+                    for composer in piece_composers:
+                        if composer and isinstance(composer, str) and composer != 'Desconocido':
+                            composers.add(composer)
+                
+                # Get premiere type
+                premiere = piece.get('premiere_type')
+                if premiere and isinstance(premiere, str):
+                    premiere_types.add(premiere)
 
-        city = extract_city_name(event.get('location', ''))
-        if city:
-            cities.add(city)
+        # Get city from location
+        location = event.get('location')
+        if location and isinstance(location, str):
+            city = extract_city_name(location)
+            if city:
+                cities.add(city)
 
-        for participant in event.get('participants', []):
-            activity = participant.get('activity', '')
-            if ' - ' in activity:
-                instrument = activity.split(' - ')[1].strip()
-                if instrument and instrument != 'Ninguno':
-                    instruments.add(instrument)
+        # Process participants for instruments
+        participants = event.get('participants')
+        if participants and isinstance(participants, list):
+            for participant in participants:
+                if not participant or not isinstance(participant, dict):
+                    continue
+                activity = participant.get('activity')
+                if activity and isinstance(activity, str) and ' - ' in activity:
+                    parts = activity.split(' - ')
+                    if len(parts) >= 2:
+                        instrument = parts[1].strip()
+                        if instrument and instrument != 'Ninguno':
+                            instruments.add(instrument)
 
-        if event.get('event_type'):
-            event_types.add(event['event_type'])
-        if event.get('cycle') and event['cycle'] != 'Ninguno':
-            cycles.add(event['cycle'])
+        # Get event type
+        event_type = event.get('event_type')
+        if event_type and isinstance(event_type, str):
+            event_types.add(event_type)
+        
+        # Get cycle
+        cycle = event.get('cycle')
+        if cycle and isinstance(cycle, str) and cycle != 'Ninguno':
+            cycles.add(cycle)
 
     return {
         'composers': [{'id': i+1, 'name': n} for i, n in enumerate(sorted(composers))],
@@ -138,25 +298,28 @@ def extract_params_from_events(events):
 
 def extract_city_name(location_str):
     """Extract city name from location string"""
-    if not location_str:
+    if not location_str or not isinstance(location_str, str):
         return None
     
-    # Format: "Venue, City (Country)"
-    if '(' in location_str and ')' in location_str:
-        import re
-        match = re.search(r',\s*([^(]+)\s*\(', location_str)
-        if match:
-            return match.group(1).strip()
-        # Format: "City (Country)"
-        match = re.search(r'^([^(]+)\s*\(', location_str)
-        if match:
-            return match.group(1).strip()
-    
-    # Comma-separated format
-    if ', ' in location_str:
-        parts = location_str.split(', ')
-        if len(parts) >= 2:
-            return parts[-1].strip()
+    try:
+        # Format: "Venue, City (Country)"
+        if '(' in location_str and ')' in location_str:
+            import re
+            match = re.search(r',\s*([^(]+)\s*\(', location_str)
+            if match:
+                return match.group(1).strip()
+            # Format: "City (Country)"
+            match = re.search(r'^([^(]+)\s*\(', location_str)
+            if match:
+                return match.group(1).strip()
+        
+        # Comma-separated format
+        if ', ' in location_str:
+            parts = location_str.split(', ')
+            if len(parts) >= 2:
+                return parts[-1].strip()
+    except Exception as e:
+        print(f"Error extracting city from '{location_str}': {e}")
     
     return None
 
@@ -248,12 +411,17 @@ def process_events_to_graph(events):
     node_ids = set()
 
     for event in events:
-        event_id = f"event_{event.get('id', hash_string(event.get('name', 'unknown')))}"
+        if not event:
+            continue
+            
+        # Get event ID safely
+        event_raw_id = event.get('id') or hash_string(event.get('name') or 'unknown')
+        event_id = f"event_{event_raw_id}"
         
         if event_id not in node_ids:
             nodes.append({
                 'id': event_id,
-                'label': event.get('name', 'Evento'),
+                'label': event.get('name') or 'Evento',
                 'type': 'event',
                 'x': 0,
                 'y': 0,
@@ -261,8 +429,11 @@ def process_events_to_graph(events):
             })
             node_ids.add(event_id)
 
-        # Process participants
-        for participant in event.get('participants', []):
+        # Process participants (safely handle None)
+        participants = event.get('participants') or []
+        for participant in participants:
+            if not participant:
+                continue
             name = participant.get('name')
             if not name:
                 continue
@@ -280,24 +451,26 @@ def process_events_to_graph(events):
             links.append({'source': event_id, 'target': p_id, 'label': 'interpretado por'})
 
             # Extract instrument
-            activity = participant.get('activity', '')
-            if ' - ' in activity:
-                instrument = activity.split(' - ')[1].strip()
-                if instrument and instrument != 'Ninguno':
-                    i_id = f"instrument_{hash_string(instrument)}"
-                    if i_id not in node_ids:
-                        nodes.append({
-                            'id': i_id,
-                            'label': instrument,
-                            'type': 'instrument',
-                            'x': 0, 'y': 0,
-                            'size': 6
-                        })
-                        node_ids.add(i_id)
-                    links.append({'source': p_id, 'target': i_id, 'label': 'toca'})
+            activity = participant.get('activity') or ''
+            if activity and ' - ' in activity:
+                parts = activity.split(' - ')
+                if len(parts) >= 2:
+                    instrument = parts[1].strip()
+                    if instrument and instrument != 'Ninguno':
+                        i_id = f"instrument_{hash_string(instrument)}"
+                        if i_id not in node_ids:
+                            nodes.append({
+                                'id': i_id,
+                                'label': instrument,
+                                'type': 'instrument',
+                                'x': 0, 'y': 0,
+                                'size': 6
+                            })
+                            node_ids.add(i_id)
+                        links.append({'source': p_id, 'target': i_id, 'label': 'toca'})
 
         # Process location/city
-        location = event.get('location', '')
+        location = event.get('location') or ''
         if location:
             city = extract_city_name(location)
             if city:
@@ -314,12 +487,13 @@ def process_events_to_graph(events):
                 links.append({'source': event_id, 'target': c_id, 'label': 'en ciudad'})
 
         # Process event type
-        if event.get('event_type'):
-            et_id = f"event_type_{hash_string(event['event_type'])}"
+        event_type = event.get('event_type')
+        if event_type:
+            et_id = f"event_type_{hash_string(event_type)}"
             if et_id not in node_ids:
                 nodes.append({
                     'id': et_id,
-                    'label': event['event_type'],
+                    'label': event_type,
                     'type': 'event_type',
                     'x': 0, 'y': 0,
                     'size': 5
@@ -342,8 +516,11 @@ def process_events_to_graph(events):
                 node_ids.add(cy_id)
             links.append({'source': event_id, 'target': cy_id, 'label': 'parte de ciclo'})
 
-        # Process pieces
-        for piece in event.get('program', []):
+        # Process pieces (safely handle None)
+        program = event.get('program') or []
+        for piece in program:
+            if not piece:
+                continue
             piece_name = piece.get('piece_name')
             if not piece_name:
                 continue
@@ -360,8 +537,9 @@ def process_events_to_graph(events):
                 node_ids.add(pi_id)
             links.append({'source': event_id, 'target': pi_id, 'label': 'incluye obra'})
 
-            # Process composers
-            for composer in piece.get('composers', []):
+            # Process composers (safely handle None)
+            composers = piece.get('composers') or []
+            for composer in composers:
                 if not composer or composer == 'Desconocido':
                     continue
                 co_id = f"composer_{hash_string(composer)}"

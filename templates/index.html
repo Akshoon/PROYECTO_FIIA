@@ -184,14 +184,21 @@
             <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
             <input type="text" id="piece-search" class="filter-input" placeholder="Obra...">
             <input type="text" id="event-search" class="filter-input" placeholder="Evento...">
-            <input type="text" id="city-search" class="filter-input" placeholder="Ciudad...">
+            <input type="text" id="location-search" class="filter-input" placeholder="Ubicación...">
+            <input type="text" id="activity-search" class="filter-input" placeholder="Actividad...">
+            <select id="gender-select" class="filter-select">
+                <option value="">Género</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+            </select>
             <select id="limit-select" class="filter-select">
                 <option value="100">100</option>
                 <option value="200">200</option>
                 <option value="500" selected>500</option>
                 <option value="1000">1000</option>
+                <option value="2000">2000</option>
             </select>
-            <button id="load-btn" class="filter-btn filter-btn-primary">Cargar</button>
+            <button id="load-btn" class="filter-btn filter-btn-primary">Filtrar</button>
             <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
             <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
         </div>
@@ -199,14 +206,6 @@
         <!-- Graph Container -->
         <div class="graph-container">
             <div id="sigma-container"></div>
-
-            <!-- Tooltip para hover -->
-            <div id="node-tooltip" class="node-tooltip">
-                <div class="tooltip-label"></div>
-                <div class="tooltip-type"></div>
-                <div class="tooltip-degree"></div>
-            </div>
-  
 
             <!-- Legend Panel -->
             <div class="legend-panel">
@@ -229,7 +228,7 @@
                 </div>
                 <div class="legend-item">
                     <span class="legend-color" style="background: #bdc3c7;"></span>
-                    <span>Ciudad</span>
+                    <span>Ubicación</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color" style="background: #3498db;"></span>
@@ -311,4 +310,4 @@
     <!-- Main Application Script -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
-</html> 
+</html>

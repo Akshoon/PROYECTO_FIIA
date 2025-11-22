@@ -1,6 +1,4 @@
 // Web Worker for processing events into graph data or filtering existing graph data
-// This file should be placed at /static/js/worker.js
-
 'use strict';
 
 self.onmessage = function(e) {
@@ -31,74 +29,166 @@ self.onmessage = function(e) {
 };
 
 function filterGraphData(nodes, links, filters) {
-    // If no filters, return all data
+    filters = filters || {};
+    
+    // Check if any filter is active
     const hasFilters = filters.year || filters.composer_q || filters.participant_q || 
-                       filters.piece_q || filters.name_q || filters.city_q;
+                       filters.piece_q || filters.name_q || filters.location_q ||
+                       filters.activity_q || filters.gender_q;
     
     if (!hasFilters) {
         return { filteredNodes: nodes, filteredLinks: links };
     }
 
+    console.log('Worker: Applying filters:', filters);
+
+    // Debug: check if nodes have year field
+    const eventNodes = nodes.filter(n => n.type === 'event');
+    console.log('Worker: Total event nodes:', eventNodes.length);
+    
+    const nodesWithYear = eventNodes.filter(n => n.year !== undefined && n.year !== null);
+    console.log('Worker: Event nodes with year:', nodesWithYear.length);
+    
+    if (nodesWithYear.length > 0) {
+        const sampleYears = nodesWithYear.slice(0, 5).map(n => n.year);
+        console.log('Worker: Sample years:', sampleYears);
+    }
+
+    // Build a map of node IDs to nodes for quick lookup
+    const nodeById = new Map();
+    nodes.forEach(n => nodeById.set(n.id, n));
+
+    // Build adjacency list for traversal
+    const adjacency = new Map();
+    nodes.forEach(n => adjacency.set(n.id, new Set()));
+    links.forEach(l => {
+        if (adjacency.has(l.source)) adjacency.get(l.source).add(l.target);
+        if (adjacency.has(l.target)) adjacency.get(l.target).add(l.source);
+    });
+
     const matchingNodeIds = new Set();
 
-    // First pass: find nodes that match filters directly
+    // First pass: find nodes that match filters
     for (const node of nodes) {
-        let matches = true;
         const label = (node.label || '').toLowerCase();
+        const nodeType = node.type || '';
 
-        switch (node.type) {
-            case 'event':
-                if (filters.name_q && !label.includes(filters.name_q.toLowerCase())) {
-                    matches = false;
+        // Year filter - only applies to event nodes
+        if (filters.year && nodeType === 'event') {
+            const nodeYear = node.year;
+            const filterYear = String(filters.year);
+            
+            // Check multiple possible formats for year
+            if (nodeYear !== undefined && nodeYear !== null) {
+                if (String(nodeYear) === filterYear) {
+                    matchingNodeIds.add(node.id);
+                    continue;
                 }
-                break;
-            case 'composer':
-                if (filters.composer_q && !label.includes(filters.composer_q.toLowerCase())) {
-                    matches = false;
-                }
-                break;
-            case 'participant':
-                if (filters.participant_q && !label.includes(filters.participant_q.toLowerCase())) {
-                    matches = false;
-                }
-                break;
-            case 'piece':
-                if (filters.piece_q && !label.includes(filters.piece_q.toLowerCase())) {
-                    matches = false;
-                }
-                break;
-            case 'city':
-            case 'location':
-                if (filters.city_q && !label.includes(filters.city_q.toLowerCase())) {
-                    matches = false;
-                }
-                break;
-            default:
-                // Include other node types by default
-                break;
+            }
+            
+            // Also try to extract year from label if not in year field
+            // Labels might be like "Concierto 1995" or contain the year
+            if (label.includes(filterYear)) {
+                matchingNodeIds.add(node.id);
+                continue;
+            }
         }
 
-        if (matches) {
-            matchingNodeIds.add(node.id);
+        // If no year filter, or this isn't an event, check other filters
+        if (!filters.year || nodeType !== 'event') {
+            let matches = false;
+
+            // Event name filter
+            if (filters.name_q && nodeType === 'event') {
+                if (label.includes(filters.name_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Composer filter
+            if (filters.composer_q && nodeType === 'composer') {
+                if (label.includes(filters.composer_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Participant filter
+            if (filters.participant_q && nodeType === 'participant') {
+                if (label.includes(filters.participant_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Piece filter
+            if (filters.piece_q && nodeType === 'piece') {
+                if (label.includes(filters.piece_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Location filter
+            if (filters.location_q && (nodeType === 'location' || nodeType === 'city')) {
+                if (label.includes(filters.location_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Activity/Instrument filter
+            if (filters.activity_q && nodeType === 'instrument') {
+                if (label.includes(filters.activity_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            // Gender filter
+            if (filters.gender_q && nodeType === 'participant') {
+                const nodeGender = node.gender || '';
+                if (nodeGender.toLowerCase().includes(filters.gender_q.toLowerCase())) {
+                    matches = true;
+                }
+            }
+
+            if (matches) {
+                matchingNodeIds.add(node.id);
+            }
         }
     }
 
-    // Second pass: expand to include connected nodes (1 level)
+    console.log('Worker: Matching nodes after first pass:', matchingNodeIds.size);
+
+    // If year filter is set but no events matched, return empty
+    if (filters.year && matchingNodeIds.size === 0) {
+        console.log('Worker: No events match year filter:', filters.year);
+        console.log('Worker: This likely means nodes were loaded without year data.');
+        console.log('Worker: Try clicking "Cargar Todo" to reload data with year information.');
+        return { filteredNodes: [], filteredLinks: [] };
+    }
+
+    // Second pass: expand to include connected nodes (2 levels for better context)
     const expandedIds = new Set(matchingNodeIds);
     
-    for (const link of links) {
-        if (matchingNodeIds.has(link.source)) {
-            expandedIds.add(link.target);
+    // First level expansion
+    matchingNodeIds.forEach(nodeId => {
+        const neighbors = adjacency.get(nodeId);
+        if (neighbors) {
+            neighbors.forEach(n => expandedIds.add(n));
         }
-        if (matchingNodeIds.has(link.target)) {
-            expandedIds.add(link.source);
+    });
+
+    // Second level expansion (for connected context)
+    const firstLevel = new Set(expandedIds);
+    firstLevel.forEach(nodeId => {
+        const neighbors = adjacency.get(nodeId);
+        if (neighbors) {
+            neighbors.forEach(n => expandedIds.add(n));
         }
-    }
+    });
 
     // Filter nodes and links
     const filteredNodes = nodes.filter(n => expandedIds.has(n.id));
     const filteredLinks = links.filter(l => expandedIds.has(l.source) && expandedIds.has(l.target));
 
+    console.log('Worker: Filter complete -', filteredNodes.length, 'nodes,', filteredLinks.length, 'links');
     return { filteredNodes, filteredLinks };
 }
 
@@ -108,12 +198,13 @@ function processEventsToGraph(events, filters) {
     const nodeMap = new Map();
     const linkSet = new Set();
 
-    // Apply event-level filters
+    // Apply event-level filters during processing
     let filteredEvents = events;
 
     if (filters.year) {
-        const year = parseInt(filters.year);
-        filteredEvents = filteredEvents.filter(e => e.year === year);
+        const yearFilter = String(filters.year);
+        filteredEvents = filteredEvents.filter(e => e.year && String(e.year) === yearFilter);
+        console.log('Worker: Year filter applied, events:', filteredEvents.length);
     }
 
     if (filters.name_q) {
@@ -128,15 +219,16 @@ function processEventsToGraph(events, filters) {
     console.log('Worker: Processing', filteredEvents.length, 'filtered events');
 
     for (const event of filteredEvents) {
-        if (!event.id && !event.name) continue;
+        if (!event || (!event.id && !event.name)) continue;
 
-        // Create event node
-        const eventId = `event_${event.id || hashString(event.name)}`;
+        // Create event node with year stored
+        const eventId = `event_${event.id || hashString(event.name || 'unknown')}`;
         if (!nodeMap.has(eventId)) {
             nodes.push({
                 id: eventId,
                 label: event.name || 'Evento',
                 type: 'event',
+                year: event.year || null,  // Store year for filtering
                 x: Math.random() * 1000,
                 y: Math.random() * 1000,
                 size: 10
@@ -147,7 +239,7 @@ function processEventsToGraph(events, filters) {
         // Process participants
         const participants = event.participants || [];
         for (const participant of participants) {
-            if (!participant.name) continue;
+            if (!participant || !participant.name) continue;
 
             // Apply participant filter
             if (filters.participant_q && 
@@ -161,6 +253,7 @@ function processEventsToGraph(events, filters) {
                     id: participantId,
                     label: participant.name,
                     type: 'participant',
+                    gender: participant.gender || null,  // Store gender for filtering
                     x: Math.random() * 1000,
                     y: Math.random() * 1000,
                     size: 8
@@ -171,9 +264,16 @@ function processEventsToGraph(events, filters) {
             addLink(links, linkSet, eventId, participantId, 'interpretado por');
 
             // Extract instrument from activity
-            if (participant.activity && participant.activity.includes(' - ')) {
-                const instrument = participant.activity.split(' - ')[1].trim();
+            const activity = participant.activity || '';
+            if (activity && activity.includes(' - ')) {
+                const instrument = activity.split(' - ')[1].trim();
                 if (instrument && instrument !== 'Ninguno') {
+                    // Apply activity filter
+                    if (filters.activity_q && 
+                        !instrument.toLowerCase().includes(filters.activity_q.toLowerCase())) {
+                        continue;
+                    }
+
                     const instrumentId = `instrument_${hashString(instrument)}`;
                     if (!nodeMap.has(instrumentId)) {
                         nodes.push({
@@ -191,35 +291,33 @@ function processEventsToGraph(events, filters) {
             }
         }
 
-        // Process location/city
-        if (event.location) {
-            const locationStr = event.location;
-            let cityName = extractCityName(locationStr);
-
-            if (cityName) {
-                // Apply city filter
-                if (!filters.city_q || cityName.toLowerCase().includes(filters.city_q.toLowerCase())) {
-                    const cityId = `city_${hashString(cityName)}`;
-                    if (!nodeMap.has(cityId)) {
-                        nodes.push({
-                            id: cityId,
-                            label: cityName,
-                            type: 'city',
-                            x: Math.random() * 1000,
-                            y: Math.random() * 1000,
-                            size: 7
-                        });
-                        nodeMap.set(cityId, true);
-                    }
-                    addLink(links, linkSet, eventId, cityId, 'en ciudad');
+        // Process location
+        const location = event.location || '';
+        if (location) {
+            // Apply location filter
+            if (!filters.location_q || 
+                location.toLowerCase().includes(filters.location_q.toLowerCase())) {
+                
+                const locationId = `location_${hashString(location)}`;
+                if (!nodeMap.has(locationId)) {
+                    nodes.push({
+                        id: locationId,
+                        label: location,
+                        type: 'location',
+                        x: Math.random() * 1000,
+                        y: Math.random() * 1000,
+                        size: 7
+                    });
+                    nodeMap.set(locationId, true);
                 }
+                addLink(links, linkSet, eventId, locationId, 'en ubicación');
             }
         }
 
         // Process program (pieces)
         const program = event.program || [];
         for (const piece of program) {
-            if (!piece.piece_name) continue;
+            if (!piece || !piece.piece_name) continue;
 
             // Apply piece filter
             if (filters.piece_q && 
@@ -331,37 +429,13 @@ function addLink(links, linkSet, source, target, label) {
     }
 }
 
-function extractCityName(locationStr) {
-    if (!locationStr) return null;
-    
-    // Try to extract from "Venue, City (Country)" format
-    if (locationStr.includes('(') && locationStr.includes(')')) {
-        const match = locationStr.match(/,\s*([^(]+)\s*\(/);
-        if (match) return match[1].trim();
-        
-        // Try "City (Country)" format
-        const cityMatch = locationStr.match(/^([^(]+)\s*\(/);
-        if (cityMatch) return cityMatch[1].trim();
-    }
-    
-    // Try comma-separated format
-    if (locationStr.includes(', ')) {
-        const parts = locationStr.split(', ');
-        if (parts.length >= 2) {
-            return parts[parts.length - 1].trim();
-        }
-    }
-    
-    return null;
-}
-
 function hashString(str) {
     if (!str) return '0';
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32-bit integer
+        hash |= 0;
     }
     return Math.abs(hash).toString();
-}
+}   

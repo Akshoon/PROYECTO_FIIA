@@ -55,6 +55,18 @@ def get_all_events():
             print(f"Error fetching page {page}: {e}")
             break
 
+    # Robustez: asegurarse de que los campos importantes sean listas
+    fixed_count = 0
+    for event in events:
+        if event.get('participants') is None:
+            event['participants'] = []
+            fixed_count += 1
+        if event.get('program') is None:
+            event['program'] = []
+            fixed_count += 1
+    if fixed_count:
+        print(f"Fixed {fixed_count} events with null participants/program fields.")
+
     return events
 
 def load_api_documentation():
