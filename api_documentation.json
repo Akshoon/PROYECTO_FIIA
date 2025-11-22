@@ -1,0 +1,71 @@
+{
+  "base_url": "http://basedeconciertos.uahurtado.cl:5099/api",
+  "endpoint": "/events",
+  "query_parameters": {
+    "text_filters": {
+      "name_q": "Filter by event name (case-insensitive partial match)",
+      "composer_q": "Filter by composer name (case-insensitive partial match)",
+      "participant_q": "Filter by participant name (case-insensitive partial match)",
+      "piece_q": "Filter by piece name (case-insensitive partial match)",
+      "activity_q": "Filter by activity (case-insensitive partial match)",
+      "gender_q": "Filter by gender (case-insensitive partial match)"
+    },
+    "id_filters": {
+      "city_id": "Filter by city ID (accepts comma-separated lists, e.g., city_id=1,5)",
+      "location_id": "Filter by location ID (accepts comma-separated lists)",
+      "event_type_id": "Filter by event type ID (accepts comma-separated lists)",
+      "cycle_id": "Filter by cycle ID (accepts comma-separated lists)",
+      "organization_id": "Filter by organization ID (accepts comma-separated lists)",
+      "instrument_id": "Filter by instrument ID (accepts comma-separated lists)",
+      "ensemble_id": "Filter by musical ensemble ID (accepts comma-separated lists)",
+      "premiere_type_id": "Filter by premiere type ID (accepts comma-separated lists)",
+      "composer_id": "Filter by composer ID (accepts comma-separated lists)",
+      "participant_id": "Filter by participant ID (accepts comma-separated lists)"
+    },
+    "other_filters": {
+      "year": "Filter by year (accepts integer list, e.g., year=1985,1986)"
+    },
+    "pagination": {
+      "page": "Page number (default: 1)",
+      "per_page": "Results per page (default: 25, max: 100)"
+    }
+  },
+  "response_structure": {
+    "events": "Array of event objects containing: id, name, year, location, event_type, cycle, participants (array with name and activity), program (array with piece_name, composers, premiere_type)",
+    "pagination": "Object with pagination metadata: total_events, total_pages, current_page, per_page, has_next, has_prev"
+  },
+  "example_request": "GET http://basedeconciertos.uahurtado.cl:5099/api/events?year=1985&page=1&per_page=50",
+  "example_response": {
+    "events": [
+      {
+        "id": 1,
+        "name": "Concierto de Bach",
+        "year": 1985,
+        "location": "Teatro Municipal, Santiago (Chile)",
+        "event_type": "Concierto",
+        "cycle": "Ciclo Clásico",
+        "participants": [
+          {
+            "name": "Juan Pérez",
+            "activity": "Pianista - Piano"
+          }
+        ],
+        "program": [
+          {
+            "piece_name": "Concierto para Piano No. 1",
+            "composers": ["Bach"],
+            "premiere_type": "Estreno Mundial"
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "total_events": 150,
+      "total_pages": 3,
+      "current_page": 1,
+      "per_page": 50,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}

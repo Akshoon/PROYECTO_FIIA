@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grafo Interactivo de Eventos Musicales</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <!-- Graphology and Sigma.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout@0.6.1/dist/graphology-layout.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/build/sigma.min.js"></script>
 </head>
 <body>
     <h1>Grafo Interactivo de Eventos Musicales</h1>
@@ -35,6 +39,10 @@
             <div class="legend-item">
                 <span class="legend-color" style="background: #bdc3c7;"></span>
                 <span class="legend-label">Ciudad</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #3498db;"></span>
+                <span class="legend-label">Instrumento</span>
             </div>
         </div>
         
@@ -78,8 +86,14 @@
             </div>
         </div>
         
-        <!-- Cytoscape Graph Container -->
-        <div id="cy"></div>
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" style="display: none;">
+            <div class="spinner"></div>
+            <span>Cargando datos...</span>
+        </div>
+        
+        <!-- Sigma.js Graph Container -->
+        <div id="sigma-container"></div>
     </div>
     
     <!-- Filters Section -->
@@ -116,20 +130,25 @@
             </div>
 
             <div class="filter-group">
-                <label for="limit-select" class="filter-label">Límite de eventos:</label>
+                <label for="limit-select" class="filter-label">Límite:</label>
                 <select id="limit-select" class="filter-select">
                     <option value="100">100</option>
                     <option value="200">200</option>
                     <option value="500" selected>500</option>
                     <option value="1000">1000</option>
+                    <option value="2000">2000</option>
                 </select>
             </div>
 
-            <button id="load-btn" class="load-btn">Cargar Datos</button>
-            <button id="clear-btn" class="clear-btn">Limpiar Filtros</button>
+            <div class="filter-buttons">
+                <button id="load-btn" class="btn btn-primary">Cargar Datos</button>
+                <button id="monthly-btn" class="btn btn-secondary">Cargar Mensual</button>
+                <button id="clear-btn" class="btn btn-outline">Limpiar</button>
+            </div>
         </div>
     </div>
     
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <!-- Main script - use type="module" for ES module imports -->
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
