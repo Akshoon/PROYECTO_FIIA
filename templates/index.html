@@ -3,152 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafo Interactivo de Eventos Musicales</title>
+    <title>Base de Conciertos - Visualización de Eventos Musicales</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Graphology and Sigma.js from CDN -->
+    <!-- Graph Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/graphology-layout@0.6.1/dist/graphology-layout.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/build/sigma.min.js"></script>
 </head>
 <body>
-    <h1>Grafo Interactivo de Eventos Musicales</h1>
-    
-    <!-- Graph Container with Controls -->
-    <div id="graph-wrapper">
-        <!-- Search Bar -->
-        <div id="graph-search-bar">
-            <input type="text" id="graph-search-input" placeholder="🔍 Buscar en el grafo...">
-            <button id="search-btn" class="search-btn">Buscar</button>
-        </div>
-        
-        <!-- Legend -->
-        <div id="legend">
-            <div class="legend-item">
-                <span class="legend-color" style="background: #34495e;"></span>
-                <span class="legend-label">Evento</span>
+    <!-- ============ LANDING PAGE ============ -->
+    <div class="landing-page" id="landing-page">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo" onclick="showLanding()">
+                    <div class="logo-icon">🎵</div>
+                    <div class="logo-text">Base de Conciertos <span>Chile</span></div>
+                </div>
+                <nav class="nav-links">
+                    <a href="#features">Características</a>
+                    <a href="#data">Datos</a>
+                    <a href="http://basedeconciertos.uahurtado.cl:5099/api" target="_blank">API</a>
+                    <a href="#" onclick="showApp(); return false;" class="btn btn-primary" style="padding: 10px 20px;">Explorar Grafo</a>
+                </nav>
             </div>
-            <div class="legend-item">
-                <span class="legend-color" style="background: #7f8c8d;"></span>
-                <span class="legend-label">Obra</span>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Explora la Historia Musical de Chile</h1>
+                <p>Visualiza y analiza más de 50 años de eventos musicales, compositores, intérpretes y obras a través de grafos interactivos.</p>
+                <div class="hero-buttons">
+                    <a href="#" onclick="showApp(); return false;" class="btn btn-primary">
+                        <span>🔍</span> Explorar Grafo
+                    </a>
+                    <a href="#features" class="btn btn-secondary">
+                        <span>📖</span> Más Información
+                    </a>
+                </div>
             </div>
-            <div class="legend-item">
-                <span class="legend-color" style="background: #95a5a6;"></span>
-                <span class="legend-label">Persona</span>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="landing-events">10,000+</div>
+                    <div class="stat-label">Eventos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">1945-1995</div>
+                    <div class="stat-label">Período</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="landing-composers">500+</div>
+                    <div class="stat-label">Compositores</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="landing-cities">50+</div>
+                    <div class="stat-label">Ciudades</div>
+                </div>
             </div>
-            <div class="legend-item">
-                <span class="legend-color" style="background: #bdc3c7;"></span>
-                <span class="legend-label">Ciudad</span>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section" id="features">
+            <div class="section-title">
+                <h2>Características</h2>
+                <p>Herramientas poderosas para explorar datos musicales históricos</p>
             </div>
-            <div class="legend-item">
-                <span class="legend-color" style="background: #3498db;"></span>
-                <span class="legend-label">Instrumento</span>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🕸️</div>
+                    <h3>Visualización de Grafos</h3>
+                    <p>Explora conexiones entre eventos, compositores, intérpretes y obras en un grafo interactivo.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Búsqueda Avanzada</h3>
+                    <p>Filtra por año, compositor, participante, obra, ciudad y más.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Análisis de Red</h3>
+                    <p>Descubre patrones y relaciones en la historia musical chilena.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🗄️</div>
+                    <h3>API REST</h3>
+                    <p>Accede a los datos programáticamente con nuestra API pública.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Caché Local</h3>
+                    <p>Los datos se almacenan localmente para acceso rápido sin conexión.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Diseño Responsivo</h3>
+                    <p>Funciona en escritorio, tablet y dispositivos móviles.</p>
+                </div>
             </div>
-        </div>
-        
-        <!-- Zoom Controls -->
-        <div id="zoom-controls">
-            <button id="zoom-in" class="zoom-btn" title="Acercar">+</button>
-            <button id="zoom-out" class="zoom-btn" title="Alejar">−</button>
-            <button id="zoom-fit" class="zoom-btn" title="Ajustar">⊡</button>
-        </div>
-        
-        <!-- Statistics Panel -->
-        <div id="stats-panel">
-            <h3>Estadísticas</h3>
-            <div class="stat-item">
-                <span class="stat-label">Nodos:</span>
-                <span class="stat-value" id="stat-nodes">0</span>
+        </section>
+
+        <!-- Data Types Section -->
+        <section class="data-types" id="data">
+            <div class="data-types-content">
+                <div class="section-title">
+                    <h2>Tipos de Datos</h2>
+                    <p>Entidades conectadas en nuestra base de datos</p>
+                </div>
+                <div class="type-list">
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #34495e;"></span>
+                        Eventos
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #7f8c8d;"></span>
+                        Obras
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #e74c3c;"></span>
+                        Compositores
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #95a5a6;"></span>
+                        Participantes
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #bdc3c7;"></span>
+                        Ciudades
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #3498db;"></span>
+                        Instrumentos
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #9b59b6;"></span>
+                        Tipos de Evento
+                    </div>
+                    <div class="type-badge">
+                        <span class="type-dot" style="background: #1abc9c;"></span>
+                        Ciclos
+                    </div>
+                </div>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Enlaces:</span>
-                <span class="stat-value" id="stat-edges">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Eventos:</span>
-                <span class="stat-value" id="stat-events">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Obras:</span>
-                <span class="stat-value" id="stat-pieces">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Personas:</span>
-                <span class="stat-value" id="stat-persons">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Ciudades:</span>
-                <span class="stat-value" id="stat-cities">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Grado promedio:</span>
-                <span class="stat-value" id="stat-degree">0</span>
-            </div>
-        </div>
-        
-        <!-- Loading Indicator -->
-        <div id="loading-indicator" style="display: none;">
-            <div class="spinner"></div>
-            <span>Cargando datos...</span>
-        </div>
-        
-        <!-- Sigma.js Graph Container -->
-        <div id="sigma-container"></div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                Proyecto de la <a href="https://www.uahurtado.cl" target="_blank">Universidad Alberto Hurtado</a> · 
+                Datos de <a href="http://basedeconciertos.uahurtado.cl:5099" target="_blank">Base de Conciertos</a>
+            </p>
+        </footer>
     </div>
-    
-    <!-- Filters Section -->
-    <div id="filters-container">
-        <div id="filters-controls">
-            <div class="filter-group">
-                <label for="year-select" class="filter-label">Año:</label>
-                <select id="year-select" class="filter-select"></select>
+
+    <!-- ============ APP PAGE ============ -->
+    <div class="app-page" id="app-page">
+        <!-- App Header -->
+        <header class="app-header">
+            <div class="app-logo" onclick="showLanding()">
+                <span>🎵</span>
+                <span>Base de Conciertos</span>
+            </div>
+            <a href="#" onclick="showLanding(); return false;" class="back-btn">
+                ← Volver al Inicio
+            </a>
+        </header>
+
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+            <select id="year-select" class="filter-select">
+                <option value="">Todos los años</option>
+            </select>
+            <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
+            <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
+            <input type="text" id="piece-search" class="filter-input" placeholder="Obra...">
+            <input type="text" id="event-search" class="filter-input" placeholder="Evento...">
+            <input type="text" id="city-search" class="filter-input" placeholder="Ciudad...">
+            <select id="limit-select" class="filter-select">
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500" selected>500</option>
+                <option value="1000">1000</option>
+            </select>
+            <button id="load-btn" class="filter-btn filter-btn-primary">Cargar</button>
+            <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
+            <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
+        </div>
+
+        <!-- Graph Container -->
+        <div class="graph-container">
+            <div id="sigma-container"></div>
+
+            <!-- Tooltip para hover -->
+            <div id="node-tooltip" class="node-tooltip">
+                <div class="tooltip-label"></div>
+                <div class="tooltip-type"></div>
+                <div class="tooltip-degree"></div>
+            </div>
+  
+
+            <!-- Legend Panel -->
+            <div class="legend-panel">
+                <div class="legend-title">Leyenda</div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #34495e;"></span>
+                    <span>Evento</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #7f8c8d;"></span>
+                    <span>Obra</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #e74c3c;"></span>
+                    <span>Compositor</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #95a5a6;"></span>
+                    <span>Participante</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #bdc3c7;"></span>
+                    <span>Ciudad</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #3498db;"></span>
+                    <span>Instrumento</span>
+                </div>
             </div>
 
-            <div class="filter-group">
-                <label for="composer-search" class="filter-label">Compositor:</label>
-                <input type="text" id="composer-search" class="filter-input" placeholder="Buscar compositor...">
+            <!-- Stats Panel -->
+            <div class="stats-panel">
+                <div class="stats-title">Estadísticas</div>
+                <div class="stat-row">
+                    <span class="label">Nodos</span>
+                    <span class="value" id="stat-nodes">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Enlaces</span>
+                    <span class="value" id="stat-edges">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Eventos</span>
+                    <span class="value" id="stat-events">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Obras</span>
+                    <span class="value" id="stat-pieces">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Personas</span>
+                    <span class="value" id="stat-persons">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="label">Grado Prom.</span>
+                    <span class="value" id="stat-degree">0</span>
+                </div>
             </div>
 
-            <div class="filter-group">
-                <label for="participant-search" class="filter-label">Participante:</label>
-                <input type="text" id="participant-search" class="filter-input" placeholder="Buscar participante...">
+            <!-- Zoom Controls -->
+            <div class="zoom-controls">
+                <button id="zoom-in" class="zoom-btn" title="Acercar">+</button>
+                <button id="zoom-out" class="zoom-btn" title="Alejar">−</button>
+                <button id="zoom-fit" class="zoom-btn" title="Ajustar">⊡</button>
             </div>
 
-            <div class="filter-group">
-                <label for="piece-search" class="filter-label">Obra:</label>
-                <input type="text" id="piece-search" class="filter-input" placeholder="Buscar obra...">
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input type="text" id="graph-search-input" placeholder="🔍 Buscar en el grafo...">
             </div>
 
-            <div class="filter-group">
-                <label for="event-search" class="filter-label">Evento:</label>
-                <input type="text" id="event-search" class="filter-input" placeholder="Buscar evento...">
-            </div>
-
-            <div class="filter-group">
-                <label for="city-search" class="filter-label">Ciudad:</label>
-                <input type="text" id="city-search" class="filter-input" placeholder="Buscar ciudad...">
-            </div>
-
-            <div class="filter-group">
-                <label for="limit-select" class="filter-label">Límite:</label>
-                <select id="limit-select" class="filter-select">
-                    <option value="100">100</option>
-                    <option value="200">200</option>
-                    <option value="500" selected>500</option>
-                    <option value="1000">1000</option>
-                    <option value="2000">2000</option>
-                </select>
-            </div>
-
-            <div class="filter-buttons">
-                <button id="load-btn" class="btn btn-primary">Cargar Datos</button>
-                <button id="monthly-btn" class="btn btn-secondary">Cargar Mensual</button>
-                <button id="clear-btn" class="btn btn-outline">Limpiar</button>
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+                <span>Cargando datos...</span>
             </div>
         </div>
     </div>
-    
-    <!-- Main script - use type="module" for ES module imports -->
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Navigation Script -->
+    <script>
+        function showApp() {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('app-page').classList.add('active');
+            // Trigger graph initialization
+            if (typeof initializeGraph === 'function') {
+                initializeGraph();
+            }
+        }
+
+        function showLanding() {
+            document.getElementById('landing-page').classList.remove('hidden');
+            document.getElementById('app-page').classList.remove('active');
+        }
+
+        // Check URL hash for direct navigation
+        if (window.location.hash === '#app') {
+            showApp();
+        }
+    </script>
+
+    <!-- Main Application Script -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
-</html>
+</html> 

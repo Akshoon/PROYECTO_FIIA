@@ -1,34 +1,8 @@
-// main.js - No ES modules, uses globals from CDN
-// Graphology is available as window.graphology.Graph
-// Sigma is available as window.Sigma
+// main.js - Music Events Graph Visualization
+// Uses globals: window.graphology, window.Sigma, window.forceAtlas2
 
-(async function() {
+(function() {
     'use strict';
-    
-    console.log('Starting application initialization');
-
-    // Wait for DOM
-    if (document.readyState === 'loading') {
-        await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
-    }
-
-    // DOM Elements
-    const sigmaContainer = document.getElementById('sigma-container');
-    const filtersContainer = document.getElementById('filters-container');
-    const graphWrapper = document.getElementById('graph-wrapper');
-    const loadingIndicator = document.getElementById('loading-indicator');
-
-    // Filter elements
-    const yearSelect = document.getElementById('year-select');
-    const composerSearch = document.getElementById('composer-search');
-    const participantSearch = document.getElementById('participant-search');
-    const pieceSearch = document.getElementById('piece-search');
-    const eventSearch = document.getElementById('event-search');
-    const citySearch = document.getElementById('city-search');
-    const limitSelect = document.getElementById('limit-select');
-    const loadBtn = document.getElementById('load-btn');
-    const monthlyBtn = document.getElementById('monthly-btn');
-    const clearBtn = document.getElementById('clear-btn');
 
     // State
     let sigma = null;
@@ -36,86 +10,110 @@
     let allEvents = [];
     let graphData = { nodes: [], links: [] };
     let worker = null;
+    let db = null;
+    let initialized = false;
 
     const MIN_YEAR = 1945;
     const MAX_YEAR = 1995;
 
-    // Initialize Web Worker
-    try {
-        worker = new Worker('/static/js/worker.js');
-        console.log('Web Worker initialized');
+    // DOM Elements (cached after init)
+    let elements = {};
+
+    // ==================== INITIALIZATION ====================
+
+    // Expose init function globally for navigation
+    window.initializeGraph = initializeGraph;
+
+    // Auto-init when DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    function init() {
+        console.log('Initializing application...');
         
-        worker.onmessage = handleWorkerMessage;
-        worker.onerror = (e) => console.error('Worker error:', e);
-    } catch (err) {
-        console.error('Failed to initialize worker:', err);
+        // Cache DOM elements
+        elements = {
+            sigmaContainer: document.getElementById('sigma-container'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            yearSelect: document.getElementById('year-select'),
+            composerSearch: document.getElementById('composer-search'),
+            participantSearch: document.getElementById('participant-search'),
+            pieceSearch: document.getElementById('piece-search'),
+            eventSearch: document.getElementById('event-search'),
+            citySearch: document.getElementById('city-search'),
+            limitSelect: document.getElementById('limit-select'),
+            loadBtn: document.getElementById('load-btn'),
+            monthlyBtn: document.getElementById('monthly-btn'),
+            clearBtn: document.getElementById('clear-btn'),
+            graphSearchInput: document.getElementById('graph-search-input')
+        };
+
+        // Initialize worker
+        try {
+            worker = new Worker('/static/js/worker.js');
+            worker.onmessage = handleWorkerMessage;
+            worker.onerror = (e) => console.error('Worker error:', e);
+            console.log('Worker initialized');
+        } catch (err) {
+            console.error('Failed to init worker:', err);
+        }
+
+        // Initialize database
+        initDatabase().then(database => {
+            db = database;
+            console.log('Database initialized');
+            return db.getGraphData();
+        }).then(cached => {
+            if (cached.nodes && cached.nodes.length > 0) {
+                graphData = cached;
+                console.log('Loaded cached data:', cached.nodes.length, 'nodes');
+            }
+        }).catch(err => {
+            console.error('Database error:', err);
+        });
+
+        // Setup UI
+        populateYearSelect();
+        setupEventListeners();
+        setupZoomControls();
+        setupSearchFunctionality();
+
+        console.log('Application initialized');
     }
 
-    // Initialize IndexedDB
-    let db = null;
-    try {
-        db = await initDatabase();
-        console.log('Database initialized');
+    function initializeGraph() {
+        if (initialized) return;
+        initialized = true;
         
-        const cached = await db.getGraphData();
-        if (cached.nodes && cached.nodes.length > 0) {
-            graphData = cached;
-            console.log('Loaded cached graph data:', cached.nodes.length, 'nodes');
-        }
-    } catch (err) {
-        console.error('Database error:', err);
-    }
-
-    // Populate year select
-    populateYearSelect();
-
-    // Load initial data
-    setTimeout(loadInitialData, 500);
-
-    // Event listeners
-    loadBtn.addEventListener('click', handleLoadClick);
-    monthlyBtn.addEventListener('click', handleMonthlyClick);
-    clearBtn.addEventListener('click', handleClearClick);
-    
-    // Scroll behavior for filters
-    setupScrollBehavior();
-
-    // ==================== FUNCTIONS ====================
-
-    function showLoading(show = true) {
-        if (loadingIndicator) {
-            loadingIndicator.style.display = show ? 'flex' : 'none';
-        }
-        if (show) {
-            sigmaContainer.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#666;">Cargando...</div>';
-        }
-    }
-
-    function populateYearSelect() {
-        yearSelect.innerHTML = '<option value="">Todos los años</option>';
-        for (let year = MAX_YEAR; year >= MIN_YEAR; year--) {
-            const opt = document.createElement('option');
-            opt.value = year;
-            opt.textContent = year;
-            yearSelect.appendChild(opt);
-        }
-    }
-
-    async function loadInitialData() {
+        console.log('Initializing graph...');
+        
         // If we have cached data, render it
         if (graphData.nodes && graphData.nodes.length > 0) {
             renderGraph(graphData.nodes, graphData.links);
-            return;
+        } else {
+            // Load initial data
+            loadInitialData();
         }
+    }
 
-        // Otherwise, fetch from API
+    // ==================== DATA LOADING ====================
+
+    async function loadInitialData() {
         showLoading(true);
+        
         try {
             const response = await fetch('/api/monthly_ingestion');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
-            console.log('Loaded data:', data.nodes?.length, 'nodes');
+            console.log('Loaded data:', {
+                events: data.events?.length || 0,
+                nodes: data.nodes?.length || 0,
+                links: data.links?.length || 0
+            });
 
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
@@ -125,13 +123,27 @@
                 renderGraph(graphData.nodes, graphData.links);
             } else if (data.events && data.events.length > 0) {
                 allEvents = data.events;
-                processEventsWithWorker(allEvents, {});
+                processEventsWithWorker(allEvents, { limit: 500 });
             } else {
-                showMessage('No hay datos disponibles');
+                showMessage('No hay datos disponibles. Intente "Cargar Todo".');
             }
         } catch (err) {
             console.error('Error loading data:', err);
-            showMessage('Error cargando datos. Intente con "Cargar Mensual".');
+            showMessage('Error cargando datos. Haga clic en "Cargar Todo" para reintentar.');
+        }
+    }
+
+    // ==================== EVENT HANDLERS ====================
+
+    function setupEventListeners() {
+        if (elements.loadBtn) {
+            elements.loadBtn.addEventListener('click', handleLoadClick);
+        }
+        if (elements.monthlyBtn) {
+            elements.monthlyBtn.addEventListener('click', handleMonthlyClick);
+        }
+        if (elements.clearBtn) {
+            elements.clearBtn.addEventListener('click', handleClearClick);
         }
     }
 
@@ -139,18 +151,17 @@
         const filters = getFilters();
         
         if (graphData.nodes && graphData.nodes.length > 0) {
-            // Filter existing graph data
             filterGraphData(filters);
         } else if (allEvents.length > 0) {
-            // Process events with filters
             processEventsWithWorker(allEvents, filters);
         } else {
-            showMessage('No hay datos. Cargue datos primero.');
+            showMessage('No hay datos. Use "Cargar Todo" primero.');
         }
     }
 
     async function handleMonthlyClick() {
         showLoading(true);
+        
         try {
             const response = await fetch('/api/monthly_ingestion');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -169,26 +180,25 @@
                 if (db) await db.storeData(data);
                 renderGraph(graphData.nodes, graphData.links);
             } else if (allEvents.length > 0) {
-                processEventsWithWorker(allEvents, {});
+                processEventsWithWorker(allEvents, { limit: 500 });
             }
             
             console.log('Monthly data loaded:', allEvents.length, 'events');
         } catch (err) {
             console.error('Error loading monthly data:', err);
-            showMessage('Error cargando datos mensuales');
+            showMessage('Error cargando datos. Verifique la conexión.');
         }
     }
 
     function handleClearClick() {
-        yearSelect.value = '';
-        composerSearch.value = '';
-        participantSearch.value = '';
-        pieceSearch.value = '';
-        eventSearch.value = '';
-        citySearch.value = '';
-        limitSelect.value = '500';
+        if (elements.yearSelect) elements.yearSelect.value = '';
+        if (elements.composerSearch) elements.composerSearch.value = '';
+        if (elements.participantSearch) elements.participantSearch.value = '';
+        if (elements.pieceSearch) elements.pieceSearch.value = '';
+        if (elements.eventSearch) elements.eventSearch.value = '';
+        if (elements.citySearch) elements.citySearch.value = '';
+        if (elements.limitSelect) elements.limitSelect.value = '500';
         
-        // Re-render full graph
         if (graphData.nodes && graphData.nodes.length > 0) {
             renderGraph(graphData.nodes, graphData.links);
         }
@@ -196,15 +206,17 @@
 
     function getFilters() {
         return {
-            year: yearSelect.value,
-            composer_q: composerSearch.value.trim(),
-            participant_q: participantSearch.value.trim(),
-            piece_q: pieceSearch.value.trim(),
-            name_q: eventSearch.value.trim(),
-            city_q: citySearch.value.trim(),
-            limit: parseInt(limitSelect.value)
+            year: elements.yearSelect?.value || '',
+            composer_q: elements.composerSearch?.value.trim() || '',
+            participant_q: elements.participantSearch?.value.trim() || '',
+            piece_q: elements.pieceSearch?.value.trim() || '',
+            name_q: elements.eventSearch?.value.trim() || '',
+            city_q: elements.citySearch?.value.trim() || '',
+            limit: parseInt(elements.limitSelect?.value || '500')
         };
     }
+
+    // ==================== WORKER COMMUNICATION ====================
 
     function processEventsWithWorker(events, filters) {
         if (!worker) {
@@ -243,26 +255,36 @@
         }
 
         if (nodes && nodes.length > 0) {
-            // If this was processing events (not filtering), save as graphData
+            // Save as cached graphData if it was from processing events
             if (!graphData.nodes || graphData.nodes.length === 0) {
                 graphData = { nodes, links: links || [] };
                 if (db) {
                     try {
                         await db.storeGraphData(nodes, links || []);
                     } catch (err) {
-                        console.error('Error caching graph:', err);
+                        console.error('Cache error:', err);
                     }
                 }
             }
             renderGraph(nodes, links || []);
         } else {
-            showMessage('No se encontraron nodos');
+            showMessage('No se encontraron resultados con esos filtros.');
+        }
+    }
+
+    // ==================== RENDERING ====================
+
+    function showLoading(show) {
+        if (elements.loadingOverlay) {
+            elements.loadingOverlay.style.display = show ? 'flex' : 'none';
         }
     }
 
     function showMessage(msg) {
         showLoading(false);
-        sigmaContainer.innerHTML = `<div style="display:flex;justify-content:center;align-items:center;height:100%;font-family:Arial,sans-serif;color:#666;text-align:center;padding:20px;">${msg}</div>`;
+        if (elements.sigmaContainer) {
+            elements.sigmaContainer.innerHTML = `<div class="message-display">${msg}</div>`;
+        }
     }
 
     function renderGraph(nodes, links) {
@@ -273,7 +295,12 @@
             return;
         }
 
-        // Validate and clean nodes
+        if (!elements.sigmaContainer) {
+            console.error('Sigma container not found');
+            return;
+        }
+
+        // Validate nodes
         const nodeMap = new Map();
         const validNodes = [];
         
@@ -285,8 +312,8 @@
                 id: String(node.id),
                 label: String(node.label || ''),
                 type: node.type || 'unknown',
-                x: typeof node.x === 'number' ? node.x : Math.random() * 1000,
-                y: typeof node.y === 'number' ? node.y : Math.random() * 1000,
+                x: typeof node.x === 'number' ? node.x : Math.random() * 100,
+                y: typeof node.y === 'number' ? node.y : Math.random() * 100,
                 size: node.size || 8
             });
         }
@@ -301,34 +328,32 @@
             link && 
             link.source && 
             link.target && 
-            nodeMap.has(link.source) && 
-            nodeMap.has(link.target) &&
-            link.source !== link.target
+            nodeMap.has(String(link.source)) && 
+            nodeMap.has(String(link.target)) &&
+            String(link.source) !== String(link.target)
         );
 
         console.log('Rendering:', validNodes.length, 'nodes,', validLinks.length, 'links');
 
-        // Destroy previous sigma instance
+        // Destroy previous sigma
         if (sigma) {
             sigma.kill();
             sigma = null;
         }
 
-        // Clear container
-        sigmaContainer.innerHTML = '';
+        elements.sigmaContainer.innerHTML = '';
 
-        // Check if we have edges to display
         if (validLinks.length === 0) {
-            showMessage('No hay conexiones para mostrar. Ajuste los filtros.');
+            showMessage('No hay conexiones para mostrar. Intente con diferentes filtros.');
             return;
         }
 
         try {
-            // Create Graphology graph
+            // Create graph
             const Graph = window.graphology;
             currentGraph = new Graph({ multi: true, allowSelfLoops: false });
 
-            // Add nodes with random initial positions
+            // Add nodes
             for (const node of validNodes) {
                 currentGraph.addNode(node.id, {
                     label: node.label,
@@ -342,34 +367,42 @@
             }
 
             // Add edges
-            for (let i = 0; i < validLinks.length; i++) {
-                const link = validLinks[i];
+            for (const link of validLinks) {
                 try {
-                    currentGraph.addEdge(link.source, link.target, {
+                    currentGraph.addEdge(String(link.source), String(link.target), {
                         label: link.label || '',
-                        size: 1,
-                        color: '#ccc'
+                        size: 0.5,
+                        color: '#404040'
                     });
                 } catch (err) {
-                    // Skip duplicate edges in non-multi mode
+                    // Skip duplicate edges
                 }
             }
 
-            // Apply layout algorithm
+            // Apply layout
             console.log('Applying layout...');
             applyLayout(currentGraph);
 
             // Initialize Sigma
-            sigma = new Sigma(currentGraph, sigmaContainer, {
+            sigma = new Sigma(currentGraph, elements.sigmaContainer, {
                 renderLabels: true,
-                labelRenderedSizeThreshold: 12,
-                labelFont: 'Arial',
-                labelSize: 12,
-                labelWeight: 'normal',
+                labelRenderedSizeThreshold: 6,  // Reducir umbral para mostrar más etiquetas
+                labelFont: 'Inter, Arial, sans-serif',
+                labelSize: 13,  // Aumentar tamaño de fuente
+                labelWeight: '700',  // Hacer texto más grueso
+                labelColor: { color: '#ffffff' },  // Color blanco puro
                 minCameraRatio: 0.1,
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
-                defaultEdgeColor: '#ddd'
+                defaultEdgeColor: '#404040',
+                edgeReducer: (edge, data) => ({
+                    ...data,
+                    hidden: data.hidden
+                }),
+                nodeReducer: (node, data) => ({
+                    ...data,
+                    hidden: data.hidden
+                })
             });
 
             // Setup interactions
@@ -377,12 +410,6 @@
             
             // Update stats
             updateStatistics(validNodes, validLinks);
-            
-            // Setup zoom controls
-            setupZoomControls();
-            
-            // Setup search
-            setupSearchFunctionality();
 
             console.log('Graph rendered successfully');
 
@@ -411,12 +438,12 @@
     function applyLayout(graph) {
         const nodeCount = graph.order;
         
-        // Try ForceAtlas2 if available (best for network graphs)
+        // Try ForceAtlas2
         if (window.forceAtlas2 && typeof window.forceAtlas2.assign === 'function') {
-            console.log('Using ForceAtlas2 layout');
+            console.log('Using ForceAtlas2');
             try {
                 window.forceAtlas2.assign(graph, {
-                    iterations: 100,
+                    iterations: Math.min(100, 50 + nodeCount / 10),
                     settings: {
                         gravity: 1,
                         scalingRatio: 10,
@@ -426,12 +453,12 @@
                 });
                 return;
             } catch (e) {
-                console.warn('ForceAtlas2 failed, using fallback:', e);
+                console.warn('ForceAtlas2 failed:', e);
             }
         }
 
-        // Try circular layout if available
-        if (window.graphologyLayout && typeof window.graphologyLayout.circular === 'function') {
+        // Try circular layout
+        if (window.graphologyLayout && window.graphologyLayout.circular) {
             console.log('Using circular layout');
             try {
                 window.graphologyLayout.circular.assign(graph, { scale: 100 });
@@ -441,53 +468,44 @@
             }
         }
 
-        // Fallback: Custom force-directed layout (simple implementation)
-        console.log('Using custom force layout');
+        // Fallback to custom layout
+        console.log('Using custom layout');
         customForceLayout(graph);
     }
 
     function customForceLayout(graph) {
-        // Simple force-directed layout implementation
         const nodes = graph.nodes();
         const nodeCount = nodes.length;
-        
-        // Initialize positions in a circle
-        const radius = Math.sqrt(nodeCount) * 20;
+        const radius = Math.sqrt(nodeCount) * 15;
+
+        // Initial circular placement
         nodes.forEach((node, i) => {
             const angle = (2 * Math.PI * i) / nodeCount;
             graph.setNodeAttribute(node, 'x', radius * Math.cos(angle));
             graph.setNodeAttribute(node, 'y', radius * Math.sin(angle));
         });
 
-        // Simple force simulation (reduced iterations for performance)
-        const iterations = Math.min(50, nodeCount);
-        const repulsion = 500;
+        // Force simulation
+        const iterations = Math.min(50, Math.max(20, nodeCount / 10));
+        const repulsion = 400;
         const attraction = 0.01;
-        const maxDisplacement = 10;
 
         for (let iter = 0; iter < iterations; iter++) {
             const displacement = new Map();
-            
-            // Initialize displacement
-            nodes.forEach(node => {
-                displacement.set(node, { x: 0, y: 0 });
-            });
+            nodes.forEach(n => displacement.set(n, { x: 0, y: 0 }));
 
-            // Repulsion between all nodes (Barnes-Hut approximation for large graphs)
+            // Repulsion (only for small graphs)
             if (nodeCount < 300) {
                 for (let i = 0; i < nodeCount; i++) {
                     for (let j = i + 1; j < nodeCount; j++) {
-                        const n1 = nodes[i];
-                        const n2 = nodes[j];
+                        const n1 = nodes[i], n2 = nodes[j];
                         const x1 = graph.getNodeAttribute(n1, 'x');
                         const y1 = graph.getNodeAttribute(n1, 'y');
                         const x2 = graph.getNodeAttribute(n2, 'x');
                         const y2 = graph.getNodeAttribute(n2, 'y');
                         
-                        const dx = x2 - x1;
-                        const dy = y2 - y1;
+                        const dx = x2 - x1, dy = y2 - y1;
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        
                         const force = repulsion / (dist * dist);
                         const fx = (dx / dist) * force;
                         const fy = (dy / dist) * force;
@@ -507,13 +525,9 @@
                 const x2 = graph.getNodeAttribute(target, 'x');
                 const y2 = graph.getNodeAttribute(target, 'y');
                 
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                
-                const force = dist * attraction;
-                const fx = dx * force;
-                const fy = dy * force;
+                const dx = x2 - x1, dy = y2 - y1;
+                const fx = dx * attraction;
+                const fy = dy * attraction;
                 
                 displacement.get(source).x += fx;
                 displacement.get(source).y += fy;
@@ -521,48 +535,88 @@
                 displacement.get(target).y -= fy;
             });
 
-            // Apply displacement with damping
+            // Apply
             const damping = 1 - (iter / iterations);
+            const maxDisp = 10 * damping;
+            
             nodes.forEach(node => {
                 const d = displacement.get(node);
                 const dist = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
-                const limitedDist = Math.min(dist, maxDisplacement * damping);
+                const limited = Math.min(dist, maxDisp);
                 
-                const newX = graph.getNodeAttribute(node, 'x') + (d.x / dist) * limitedDist;
-                const newY = graph.getNodeAttribute(node, 'y') + (d.y / dist) * limitedDist;
-                
-                graph.setNodeAttribute(node, 'x', newX);
-                graph.setNodeAttribute(node, 'y', newY);
+                graph.setNodeAttribute(node, 'x', 
+                    graph.getNodeAttribute(node, 'x') + (d.x / dist) * limited);
+                graph.setNodeAttribute(node, 'y', 
+                    graph.getNodeAttribute(node, 'y') + (d.y / dist) * limited);
             });
         }
-
-        console.log('Custom layout complete');
     }
+
+    // ==================== INTERACTIONS ====================
 
     function setupSigmaInteractions() {
         if (!sigma || !currentGraph) return;
-
-        // Click node
-        sigma.on('clickNode', ({ node }) => {
-            const attrs = currentGraph.getNodeAttributes(node);
-            const degree = currentGraph.degree(node);
-            alert(`Nodo: ${attrs.label}\nTipo: ${attrs.nodeType}\nConexiones: ${degree}`);
-        });
-
-        // Hover - highlight neighbors
-        let hoveredNode = null;
         
-        sigma.on('enterNode', ({ node }) => {
-            hoveredNode = node;
-            highlightNode(node);
+        // Obtener el elemento del tooltip
+        const tooltip = document.getElementById('node-tooltip');
+        if (!tooltip) {
+          console.warn('Tooltip element not found');
+          return;
+        }
+        
+        const tooltipLabel = tooltip.querySelector('.tooltip-label');
+        const tooltipType = tooltip.querySelector('.tooltip-type');
+        const tooltipDegree = tooltip.querySelector('.tooltip-degree');
+      
+        // Click en nodo
+        sigma.on('clickNode', ({ node }) => {
+          const attrs = currentGraph.getNodeAttributes(node);
+          const degree = currentGraph.degree(node);
+          alert(`${attrs.label}\n${attrs.nodeType}\nConexiones: ${degree}`);
         });
-
+      
+        // Hover sobre nodo - mostrar tooltip
+        sigma.on('enterNode', ({ node, event }) => {
+          if (!tooltip || !currentGraph) return;
+          
+          const attrs = currentGraph.getNodeAttributes(node);
+          const degree = currentGraph.degree(node);
+          
+          // Actualizar contenido del tooltip
+          if (tooltipLabel) tooltipLabel.textContent = attrs.label || 'Sin nombre';
+          if (tooltipType) tooltipType.textContent = attrs.nodeType || 'unknown';
+          if (tooltipDegree) tooltipDegree.textContent = `Conexiones: ${degree}`;
+          
+          // Posicionar el tooltip
+          const x = event.x + 15;
+          const y = event.y + 15;
+          tooltip.style.left = `${x}px`;
+          tooltip.style.top = `${y}px`;
+          tooltip.classList.add('visible');
+          
+          // Resaltar nodo
+          highlightNode(node);
+        });
+      
+        // Mouse se mueve sobre el canvas (actualizar posición del tooltip)
+        sigma.on('mousemove', ({ event }) => {
+          if (tooltip && tooltip.classList.contains('visible')) {
+            const x = event.x + 15;
+            const y = event.y + 15;
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+          }
+        });
+      
+        // Salir del nodo - ocultar tooltip
         sigma.on('leaveNode', () => {
-            hoveredNode = null;
-            resetHighlight();
+          if (tooltip) {
+            tooltip.classList.remove('visible');
+          }
+          resetHighlight();
         });
-    }
-
+      }
+      
     function highlightNode(nodeId) {
         if (!currentGraph) return;
         
@@ -571,8 +625,13 @@
 
         currentGraph.forEachNode((node, attrs) => {
             currentGraph.setNodeAttribute(node, 'color', 
-                neighbors.has(node) ? getNodeColor(attrs.nodeType) : '#eee'
+                neighbors.has(node) ? getNodeColor(attrs.nodeType) : '#333'
             );
+        });
+
+        currentGraph.forEachEdge((edge, attrs, source, target) => {
+            const connected = neighbors.has(source) && neighbors.has(target);
+            currentGraph.setEdgeAttribute(edge, 'color', connected ? '#666' : '#222');
         });
 
         sigma.refresh();
@@ -585,32 +644,42 @@
             currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
         });
 
+        currentGraph.forEachEdge(edge => {
+            currentGraph.setEdgeAttribute(edge, 'color', '#404040');
+        });
+
         sigma.refresh();
     }
 
     function updateStatistics(nodes, links) {
-        const stats = {
-            'stat-nodes': nodes.length,
-            'stat-edges': links.length,
-            'stat-events': nodes.filter(n => n.type === 'event').length,
-            'stat-pieces': nodes.filter(n => n.type === 'piece').length,
-            'stat-persons': nodes.filter(n => n.type === 'composer' || n.type === 'participant').length,
-            'stat-cities': nodes.filter(n => n.type === 'city').length
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
         };
 
-        for (const [id, value] of Object.entries(stats)) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = value;
-        }
+        setVal('stat-nodes', nodes.length);
+        setVal('stat-edges', links.length);
+        setVal('stat-events', nodes.filter(n => n.type === 'event').length);
+        setVal('stat-pieces', nodes.filter(n => n.type === 'piece').length);
+        setVal('stat-persons', nodes.filter(n => n.type === 'composer' || n.type === 'participant').length);
 
-        // Average degree
-        const degreeEl = document.getElementById('stat-degree');
-        if (degreeEl && currentGraph && nodes.length > 0) {
-            let totalDegree = 0;
-            currentGraph.forEachNode(node => {
-                totalDegree += currentGraph.degree(node);
-            });
-            degreeEl.textContent = (totalDegree / nodes.length).toFixed(2);
+        if (currentGraph && nodes.length > 0) {
+            let total = 0;
+            currentGraph.forEachNode(n => total += currentGraph.degree(n));
+            setVal('stat-degree', (total / nodes.length).toFixed(2));
+        }
+    }
+
+    // ==================== CONTROLS ====================
+
+    function populateYearSelect() {
+        if (!elements.yearSelect) return;
+        elements.yearSelect.innerHTML = '<option value="">Todos los años</option>';
+        for (let year = MAX_YEAR; year >= MIN_YEAR; year--) {
+            const opt = document.createElement('option');
+            opt.value = year;
+            opt.textContent = year;
+            elements.yearSelect.appendChild(opt);
         }
     }
 
@@ -619,103 +688,51 @@
         const zoomOut = document.getElementById('zoom-out');
         const zoomFit = document.getElementById('zoom-fit');
 
-        if (zoomIn) {
-            zoomIn.onclick = () => {
-                if (sigma) {
-                    const camera = sigma.getCamera();
-                    camera.animatedZoom({ duration: 200 });
-                }
-            };
-        }
-
-        if (zoomOut) {
-            zoomOut.onclick = () => {
-                if (sigma) {
-                    const camera = sigma.getCamera();
-                    camera.animatedUnzoom({ duration: 200 });
-                }
-            };
-        }
-
-        if (zoomFit) {
-            zoomFit.onclick = () => {
-                if (sigma) {
-                    const camera = sigma.getCamera();
-                    camera.animatedReset({ duration: 200 });
-                }
-            };
-        }
+        if (zoomIn) zoomIn.onclick = () => sigma?.getCamera().animatedZoom({ duration: 200 });
+        if (zoomOut) zoomOut.onclick = () => sigma?.getCamera().animatedUnzoom({ duration: 200 });
+        if (zoomFit) zoomFit.onclick = () => sigma?.getCamera().animatedReset({ duration: 200 });
     }
 
     function setupSearchFunctionality() {
-        const searchInput = document.getElementById('graph-search-input');
-        const searchBtn = document.getElementById('search-btn');
-        
-        if (!searchInput) return;
+        const input = elements.graphSearchInput;
+        if (!input) return;
 
         const doSearch = () => {
-            const term = searchInput.value.toLowerCase().trim();
+            const term = input.value.toLowerCase().trim();
             if (!currentGraph || !sigma) return;
 
-            if (term === '') {
-                // Show all
-                currentGraph.forEachNode(node => {
-                    currentGraph.setNodeAttribute(node, 'hidden', false);
-                });
-                currentGraph.forEachEdge(edge => {
-                    currentGraph.setEdgeAttribute(edge, 'hidden', false);
-                });
+            if (!term) {
+                currentGraph.forEachNode(n => currentGraph.setNodeAttribute(n, 'hidden', false));
+                currentGraph.forEachEdge(e => currentGraph.setEdgeAttribute(e, 'hidden', false));
             } else {
-                // Find matches
                 const matches = new Set();
                 currentGraph.forEachNode((node, attrs) => {
-                    if (attrs.label && attrs.label.toLowerCase().includes(term)) {
+                    if (attrs.label?.toLowerCase().includes(term)) {
                         matches.add(node);
                     }
                 });
 
-                // Show only matches and their edges
-                currentGraph.forEachNode(node => {
-                    currentGraph.setNodeAttribute(node, 'hidden', !matches.has(node));
+                // Also include neighbors of matches
+                const expanded = new Set(matches);
+                matches.forEach(m => {
+                    currentGraph.neighbors(m).forEach(n => expanded.add(n));
                 });
 
-                currentGraph.forEachEdge((edge, attrs, source, target) => {
-                    currentGraph.setEdgeAttribute(edge, 'hidden', 
-                        !matches.has(source) || !matches.has(target)
-                    );
+                currentGraph.forEachNode(n => {
+                    currentGraph.setNodeAttribute(n, 'hidden', !expanded.has(n));
+                });
+
+                currentGraph.forEachEdge((e, attrs, source, target) => {
+                    currentGraph.setEdgeAttribute(e, 'hidden', 
+                        !expanded.has(source) || !expanded.has(target));
                 });
             }
 
             sigma.refresh();
         };
 
-        searchInput.addEventListener('input', doSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') doSearch();
-        });
-        
-        if (searchBtn) {
-            searchBtn.addEventListener('click', doSearch);
-        }
-    }
-
-    function setupScrollBehavior() {
-        let lastScrollTop = 0;
-        let filtersHidden = false;
-
-        window.addEventListener('scroll', () => {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-
-            if (scrollTop > lastScrollTop && scrollTop > 50 && !filtersHidden) {
-                filtersContainer.style.transform = 'translateY(-100%)';
-                filtersHidden = true;
-            } else if (scrollTop < lastScrollTop && filtersHidden) {
-                filtersContainer.style.transform = 'translateY(0)';
-                filtersHidden = false;
-            }
-
-            lastScrollTop = Math.max(0, scrollTop);
-        });
+        input.addEventListener('input', doSearch);
+        input.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
     }
 
     // ==================== DATABASE ====================
@@ -737,28 +754,22 @@
                     async storeData(data) {
                         const tx = database.transaction(['events', 'nodes', 'links', 'metadata'], 'readwrite');
                         
-                        if (data.events) {
+                        if (data.events?.length) {
                             const store = tx.objectStore('events');
                             store.clear();
-                            for (const event of data.events) {
-                                if (event.id) store.put(event);
-                            }
+                            data.events.forEach(e => e.id && store.put(e));
                         }
                         
-                        if (data.nodes) {
+                        if (data.nodes?.length) {
                             const store = tx.objectStore('nodes');
                             store.clear();
-                            for (const node of data.nodes) {
-                                if (node.id) store.put(node);
-                            }
+                            data.nodes.forEach(n => n.id && store.put(n));
                         }
                         
-                        if (data.links) {
+                        if (data.links?.length) {
                             const store = tx.objectStore('links');
                             store.clear();
-                            data.links.forEach((link, i) => {
-                                store.put({ id: `link_${i}`, ...link });
-                            });
+                            data.links.forEach((l, i) => store.put({ id: `link_${i}`, ...l }));
                         }
                         
                         tx.objectStore('metadata').put({ key: 'lastUpdate', value: Date.now() });
@@ -776,7 +787,7 @@
                     async getGraphData() {
                         const tx = database.transaction(['nodes', 'links'], 'readonly');
                         
-                        const getAll = (store) => new Promise((res, rej) => {
+                        const getAll = store => new Promise((res, rej) => {
                             const req = store.getAll();
                             req.onsuccess = () => res(req.result || []);
                             req.onerror = () => rej(req.error);
@@ -787,32 +798,19 @@
                         const links = rawLinks.map(({ source, target, label }) => ({ source, target, label }));
                         
                         return { nodes, links };
-                    },
-                    
-                    async getAllEvents() {
-                        const tx = database.transaction(['events'], 'readonly');
-                        return new Promise((res, rej) => {
-                            const req = tx.objectStore('events').getAll();
-                            req.onsuccess = () => res(req.result || []);
-                            req.onerror = () => rej(req.error);
-                        });
                     }
                 });
             };
 
             request.onupgradeneeded = (event) => {
                 const database = event.target.result;
-                const stores = [
-                    { name: 'events', keyPath: 'id' },
-                    { name: 'nodes', keyPath: 'id' },
-                    { name: 'links', keyPath: 'id' },
-                    { name: 'metadata', keyPath: 'key' }
-                ];
-                
-                for (const { name, keyPath } of stores) {
+                ['events', 'nodes', 'links'].forEach(name => {
                     if (!database.objectStoreNames.contains(name)) {
-                        database.createObjectStore(name, { keyPath });
+                        database.createObjectStore(name, { keyPath: 'id' });
                     }
+                });
+                if (!database.objectStoreNames.contains('metadata')) {
+                    database.createObjectStore('metadata', { keyPath: 'key' });
                 }
             };
         });
