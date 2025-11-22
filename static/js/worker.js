@@ -87,7 +87,7 @@ function filterGraphData(nodes, links, filters) {
             }
             
             // Also try to extract year from label if not in year field
-            // Labels might be like "Concierto 1995" or contain the year
+            // Labels might be like "Concierto 2023" or contain the year
             if (label.includes(filterYear)) {
                 matchingNodeIds.add(node.id);
                 continue;

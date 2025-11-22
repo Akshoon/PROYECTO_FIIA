@@ -1,5 +1,4 @@
-// main.js - Music Events Graph Visualization
-// Uses globals: window.graphology, window.Sigma, window.forceAtlas2
+// main.js - Music Events Graph Visualization with Complete Parameter Loading
 
 (function() {
     'use strict';
@@ -9,32 +8,52 @@
     let currentGraph = null;
     let allEvents = [];
     let graphData = { nodes: [], links: [] };
+    let filterParams = null; // Store all filter parameters
     let worker = null;
     let db = null;
     let initialized = false;
 
     const MIN_YEAR = 1945;
-    const MAX_YEAR = 1995;
+    const MAX_YEAR = 2023;
 
-    // DOM Elements (cached after init)
+    // DOM Elements
     let elements = {};
 
     // ==================== INITIALIZATION ====================
 
-    // Expose init function globally for navigation
     window.initializeGraph = initializeGraph;
 
-    // Auto-init when DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
 
-    function init() {
+    async function init() {
         console.log('Initializing application...');
         
         // Cache DOM elements
+        cacheElements();
+
+        // Initialize worker
+        initWorker();
+
+        // Initialize database
+        await initDB();
+
+        // Setup UI
+        populateYearSelect();
+        setupEventListeners();
+        setupZoomControls();
+        setupSearchFunctionality();
+
+        // Load filter parameters
+        await loadFilterParameters();
+
+        console.log('Application initialized');
+    }
+
+    function cacheElements() {
         elements = {
             sigmaContainer: document.getElementById('sigma-container'),
             loadingOverlay: document.getElementById('loading-overlay'),
@@ -52,8 +71,9 @@
             clearBtn: document.getElementById('clear-btn'),
             graphSearchInput: document.getElementById('graph-search-input')
         };
+    }
 
-        // Initialize worker
+    function initWorker() {
         try {
             worker = new Worker('/static/js/worker.js');
             worker.onmessage = handleWorkerMessage;
@@ -62,28 +82,161 @@
         } catch (err) {
             console.error('Failed to init worker:', err);
         }
+    }
 
-        // Initialize database
-        initDatabase().then(database => {
-            db = database;
+    async function initDB() {
+        try {
+            // Check if MusicEventsDB is available
+            if (!window.MusicEventsDB) {
+                console.error('MusicEventsDB not loaded yet');
+                // Try to wait a bit and retry
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (!window.MusicEventsDB) {
+                    throw new Error('MusicEventsDB is not available');
+                }
+            }
+            
+            db = window.MusicEventsDB;
+            await db.init();
             console.log('Database initialized');
-            return db.getGraphData();
-        }).then(cached => {
+            
+            // Try to load cached data
+            const cached = await db.getGraphData();
             if (cached.nodes && cached.nodes.length > 0) {
                 graphData = cached;
-                console.log('Loaded cached data:', cached.nodes.length, 'nodes');
+                console.log('Loaded cached graph data:', cached.nodes.length, 'nodes');
             }
-        }).catch(err => {
+
+            // Check if we need to refresh data
+            const isStale = await db.isDataStale(30);
+            if (isStale) {
+                console.log('Cached data is stale, will refresh on first load');
+            }
+        } catch (err) {
             console.error('Database error:', err);
-        });
+            // Continue without database support
+            console.warn('Continuing without IndexedDB support');
+        }
+    }
 
-        // Setup UI
-        populateYearSelect();
-        setupEventListeners();
-        setupZoomControls();
-        setupSearchFunctionality();
+    async function loadFilterParameters() {
+        console.log('Loading filter parameters...');
+        showLoading(true, 'Cargando parámetros de filtro...');
 
-        console.log('Application initialized');
+        try {
+            // Check if db is available
+            if (!db) {
+                console.warn('Database not available, skipping filter parameter cache');
+                await fetchFilterParamsFromAPI();
+                showLoading(false);
+                return;
+            }
+
+            // Try to get from cache first
+            const cachedParams = await db.getAllFilterParams();
+            
+            if (cachedParams && Object.keys(cachedParams).some(k => cachedParams[k].length > 0)) {
+                filterParams = cachedParams;
+                console.log('Loaded filter params from cache');
+                populateFilterDropdowns();
+                showLoading(false);
+                return;
+            }
+
+            // If not in cache, fetch from API
+            await fetchFilterParamsFromAPI();
+        } catch (err) {
+            console.error('Error loading filter parameters:', err);
+            showLoading(false);
+        }
+    }
+
+    async function fetchFilterParamsFromAPI() {
+        console.log('Fetching filter parameters from API...');
+        
+        try {
+            const response = await fetch('/api/get_all_filter_values');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                filterParams = data.data;
+                console.log('Filter parameters loaded:', data.counts);
+                
+                // Store in IndexedDB for future use (if available)
+                if (db && db.db) {
+                    try {
+                        await db.storeFilterParams(filterParams);
+                    } catch (storeErr) {
+                        console.warn('Could not store filter params:', storeErr);
+                    }
+                }
+                
+                populateFilterDropdowns();
+            } else {
+                console.warn('Failed to load filter parameters');
+            }
+        } catch (err) {
+            console.error('Error fetching from API:', err);
+        }
+    }
+
+    function populateFilterDropdowns() {
+        if (!filterParams) return;
+
+        // You can add autocomplete or datalists here
+        // For now, we'll add datalists for text inputs
+
+        // Add datalist for composers
+        if (filterParams.composers && filterParams.composers.length > 0) {
+            addDatalist('composer-list', filterParams.composers, elements.composerSearch);
+        }
+
+        // Add datalist for participants
+        if (filterParams.participants && filterParams.participants.length > 0) {
+            addDatalist('participant-list', filterParams.participants, elements.participantSearch);
+        }
+
+        // Add datalist for cities
+        if (filterParams.cities && filterParams.cities.length > 0) {
+            addDatalist('location-list', filterParams.cities, elements.locationSearch);
+        }
+
+        // Add datalist for instruments/activities
+        if (filterParams.instruments && filterParams.instruments.length > 0) {
+            addDatalist('activity-list', filterParams.instruments, elements.activitySearch);
+        }
+
+        console.log('Filter dropdowns populated');
+    }
+
+    function addDatalist(id, items, inputElement) {
+        if (!inputElement) return;
+
+        // Remove existing datalist if any
+        let datalist = document.getElementById(id);
+        if (datalist) {
+            datalist.remove();
+        }
+
+        // Create new datalist
+        datalist = document.createElement('datalist');
+        datalist.id = id;
+
+        // Add options (limit to first 100 for performance)
+        const maxItems = Math.min(items.length, 100);
+        for (let i = 0; i < maxItems; i++) {
+            const option = document.createElement('option');
+            option.value = items[i].name;
+            datalist.appendChild(option);
+        }
+
+        document.body.appendChild(datalist);
+        inputElement.setAttribute('list', id);
     }
 
     function initializeGraph() {
@@ -92,11 +245,9 @@
         
         console.log('Initializing graph...');
         
-        // If we have cached data, render it
         if (graphData.nodes && graphData.nodes.length > 0) {
             renderGraph(graphData.nodes, graphData.links);
         } else {
-            // Load initial data
             loadInitialData();
         }
     }
@@ -104,7 +255,7 @@
     // ==================== DATA LOADING ====================
 
     async function loadInitialData() {
-        showLoading(true);
+        showLoading(true, 'Cargando datos iniciales...');
         
         try {
             const response = await fetch('/api/monthly_ingestion');
@@ -121,7 +272,15 @@
                 graphData = { nodes: data.nodes, links: data.links || [] };
                 allEvents = data.events || [];
                 
-                if (db) await db.storeData(data);
+                // Store everything in IndexedDB
+                if (db) await db.storeAllData(data);
+                
+                // Also update filter params if included
+                if (data.params) {
+                    filterParams = data.params;
+                    populateFilterDropdowns();
+                }
+                
                 renderGraph(graphData.nodes, graphData.links);
             } else if (data.events && data.events.length > 0) {
                 allEvents = data.events;
@@ -163,7 +322,7 @@
     }
 
     async function handleMonthlyClick() {
-        showLoading(true);
+        showLoading(true, 'Cargando todos los datos...');
         
         try {
             const response = await fetch('/api/monthly_ingestion');
@@ -180,7 +339,16 @@
             
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
-                if (db) await db.storeData(data);
+                
+                // Store all data in IndexedDB
+                if (db) await db.storeAllData(data);
+                
+                // Update filter params
+                if (data.params) {
+                    filterParams = data.params;
+                    populateFilterDropdowns();
+                }
+                
                 renderGraph(graphData.nodes, graphData.links);
             } else if (allEvents.length > 0) {
                 processEventsWithWorker(allEvents, { limit: 500 });
@@ -199,7 +367,7 @@
         if (elements.participantSearch) elements.participantSearch.value = '';
         if (elements.pieceSearch) elements.pieceSearch.value = '';
         if (elements.eventSearch) elements.eventSearch.value = '';
-        if (elements.citySearch) elements.citySearch.value = '';
+        if (elements.locationSearch) elements.locationSearch.value = '';
         if (elements.activitySearch) elements.activitySearch.value = '';
         if (elements.genderSelect) elements.genderSelect.value = '';
         if (elements.limitSelect) elements.limitSelect.value = '500';
@@ -216,7 +384,7 @@
             participant_q: (elements.participantSearch && elements.participantSearch.value && elements.participantSearch.value.trim()) || '',
             piece_q: (elements.pieceSearch && elements.pieceSearch.value && elements.pieceSearch.value.trim()) || '',
             name_q: (elements.eventSearch && elements.eventSearch.value && elements.eventSearch.value.trim()) || '',
-            city_q: (elements.citySearch && elements.citySearch.value && elements.citySearch.value.trim()) || '',
+            location_q: (elements.locationSearch && elements.locationSearch.value && elements.locationSearch.value.trim()) || '',
             activity_q: (elements.activitySearch && elements.activitySearch.value && elements.activitySearch.value.trim()) || '',
             gender_q: (elements.genderSelect && elements.genderSelect.value) || '',
             limit: parseInt((elements.limitSelect && elements.limitSelect.value) || '500') || 500
@@ -230,7 +398,7 @@
             showMessage('Worker no disponible');
             return;
         }
-        showLoading(true);
+        showLoading(true, 'Procesando eventos...');
         worker.postMessage({ events, filters });
     }
 
@@ -240,11 +408,10 @@
             return;
         }
         
-        // Ensure filters is an object with default values
         filters = filters || {};
         
         const hasFilters = filters.year || filters.composer_q || filters.participant_q || 
-                          filters.piece_q || filters.name_q || filters.city_q ||
+                          filters.piece_q || filters.name_q || filters.location_q ||
                           filters.activity_q || filters.gender_q;
         
         if (!hasFilters) {
@@ -252,7 +419,7 @@
             return;
         }
 
-        showLoading(true);
+        showLoading(true, 'Filtrando datos...');
         worker.postMessage({ nodes: graphData.nodes, links: graphData.links, filters });
     }
 
@@ -266,7 +433,6 @@
         }
 
         if (nodes && nodes.length > 0) {
-            // Save as cached graphData if it was from processing events
             if (!graphData.nodes || graphData.nodes.length === 0) {
                 graphData = { nodes, links: links || [] };
                 if (db) {
@@ -285,9 +451,11 @@
 
     // ==================== RENDERING ====================
 
-    function showLoading(show) {
+    function showLoading(show, message = 'Cargando datos...') {
         if (elements.loadingOverlay) {
             elements.loadingOverlay.style.display = show ? 'flex' : 'none';
+            const textEl = elements.loadingOverlay.querySelector('span');
+            if (textEl) textEl.textContent = message;
         }
     }
 
@@ -311,7 +479,7 @@
             return;
         }
 
-        // Validate nodes
+        // Validate and prepare nodes
         const nodeMap = new Map();
         const validNodes = [];
         
@@ -360,16 +528,13 @@
         }
 
         try {
-            // Create graph
-            const Graph = window.graphology;
+            const Graph = window.graphology.Graph || window.graphology;
             currentGraph = new Graph({ multi: true, allowSelfLoops: false });
 
             // Add nodes
             for (const node of validNodes) {
                 currentGraph.addNode(node.id, {
                     label: node.label,
-                    x: Math.random() * 100,
-                    y: Math.random() * 100,
                     size: node.size,
                     color: getNodeColor(node.type),
                     nodeType: node.type,
@@ -405,21 +570,10 @@
                 minCameraRatio: 0.1,
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
-                defaultEdgeColor: '#404040',
-                edgeReducer: (edge, data) => ({
-                    ...data,
-                    hidden: data.hidden
-                }),
-                nodeReducer: (node, data) => ({
-                    ...data,
-                    hidden: data.hidden
-                })
+                defaultEdgeColor: '#404040'
             });
 
-            // Setup interactions
             setupSigmaInteractions();
-            
-            // Update stats
             updateStatistics(validNodes, validLinks);
 
             console.log('Graph rendered successfully');
@@ -449,17 +603,18 @@
     function applyLayout(graph) {
         const nodeCount = graph.order;
         
-        // Try ForceAtlas2
         if (window.forceAtlas2 && typeof window.forceAtlas2.assign === 'function') {
             console.log('Using ForceAtlas2');
             try {
                 window.forceAtlas2.assign(graph, {
-                    iterations: Math.min(100, 50 + nodeCount / 10),
+                    iterations: Math.min(250, 150 + nodeCount / 100),
                     settings: {
                         gravity: 1,
-                        scalingRatio: 10,
-                        strongGravityMode: true,
-                        barnesHutOptimize: nodeCount > 500
+                        scalingRatio: 50,
+                        strongGravityMode: false,
+                        barnesHutOptimize: nodeCount > 500,
+                        jitterTolerance: 0.7,
+                        edgeWeightInfluence: 1
                     }
                 });
                 return;
@@ -468,7 +623,6 @@
             }
         }
 
-        // Try circular layout
         if (window.graphologyLayout && window.graphologyLayout.circular) {
             console.log('Using circular layout');
             try {
@@ -479,7 +633,6 @@
             }
         }
 
-        // Fallback to custom layout
         console.log('Using custom layout');
         customForceLayout(graph);
     }
@@ -497,15 +650,14 @@
         });
 
         // Force simulation
-        const iterations = Math.min(50, Math.max(20, nodeCount / 10));
-        const repulsion = 400;
-        const attraction = 0.01;
+        const iterations = Math.min(100, Math.max(50, nodeCount / 8));
+        const repulsion = 800;
+        const attraction = 0.02;
 
         for (let iter = 0; iter < iterations; iter++) {
             const displacement = new Map();
             nodes.forEach(n => displacement.set(n, { x: 0, y: 0 }));
 
-            // Repulsion (only for small graphs)
             if (nodeCount < 300) {
                 for (let i = 0; i < nodeCount; i++) {
                     for (let j = i + 1; j < nodeCount; j++) {
@@ -529,7 +681,6 @@
                 }
             }
 
-            // Attraction along edges
             graph.forEachEdge((edge, attr, source, target) => {
                 const x1 = graph.getNodeAttribute(source, 'x');
                 const y1 = graph.getNodeAttribute(source, 'y');
@@ -546,7 +697,6 @@
                 displacement.get(target).y -= fy;
             });
 
-            // Apply
             const damping = 1 - (iter / iterations);
             const maxDisp = 10 * damping;
             
@@ -673,7 +823,6 @@
                     }
                 });
 
-                // Also include neighbors of matches
                 const expanded = new Set(matches);
                 matches.forEach(m => {
                     currentGraph.neighbors(m).forEach(n => expanded.add(n));
@@ -694,87 +843,6 @@
 
         input.addEventListener('input', doSearch);
         input.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
-    }
-
-    // ==================== DATABASE ====================
-
-    async function initDatabase() {
-        const dbName = 'MusicEventsDB';
-        const version = 3;
-
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(dbName, version);
-
-            request.onerror = () => reject(request.error);
-            
-            request.onsuccess = () => {
-                const database = request.result;
-                resolve({
-                    db: database,
-                    
-                    async storeData(data) {
-                        const tx = database.transaction(['events', 'nodes', 'links', 'metadata'], 'readwrite');
-                        
-                        if (data.events?.length) {
-                            const store = tx.objectStore('events');
-                            store.clear();
-                            data.events.forEach(e => e.id && store.put(e));
-                        }
-                        
-                        if (data.nodes?.length) {
-                            const store = tx.objectStore('nodes');
-                            store.clear();
-                            data.nodes.forEach(n => n.id && store.put(n));
-                        }
-                        
-                        if (data.links?.length) {
-                            const store = tx.objectStore('links');
-                            store.clear();
-                            data.links.forEach((l, i) => store.put({ id: `link_${i}`, ...l }));
-                        }
-                        
-                        tx.objectStore('metadata').put({ key: 'lastUpdate', value: Date.now() });
-                        
-                        return new Promise((res, rej) => {
-                            tx.oncomplete = res;
-                            tx.onerror = () => rej(tx.error);
-                        });
-                    },
-                    
-                    async storeGraphData(nodes, links) {
-                        return this.storeData({ nodes, links });
-                    },
-                    
-                    async getGraphData() {
-                        const tx = database.transaction(['nodes', 'links'], 'readonly');
-                        
-                        const getAll = store => new Promise((res, rej) => {
-                            const req = store.getAll();
-                            req.onsuccess = () => res(req.result || []);
-                            req.onerror = () => rej(req.error);
-                        });
-                        
-                        const nodes = await getAll(tx.objectStore('nodes'));
-                        const rawLinks = await getAll(tx.objectStore('links'));
-                        const links = rawLinks.map(({ source, target, label }) => ({ source, target, label }));
-                        
-                        return { nodes, links };
-                    }
-                });
-            };
-
-            request.onupgradeneeded = (event) => {
-                const database = event.target.result;
-                ['events', 'nodes', 'links'].forEach(name => {
-                    if (!database.objectStoreNames.contains(name)) {
-                        database.createObjectStore(name, { keyPath: 'id' });
-                    }
-                });
-                if (!database.objectStoreNames.contains('metadata')) {
-                    database.createObjectStore('metadata', { keyPath: 'key' });
-                }
-            };
-        });
     }
 
 })();

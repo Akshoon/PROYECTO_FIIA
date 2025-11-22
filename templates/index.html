@@ -55,7 +55,7 @@
                     <div class="stat-label">Eventos</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">1945-1995</div>
+                    <div class="stat-number">1945-2023</div>
                     <div class="stat-label">Período</div>
                 </div>
                 <div class="stat-card">
@@ -307,7 +307,8 @@
         }
     </script>
 
-    <!-- Main Application Script -->
+    <!-- CRITICAL: Load db.js BEFORE main.js -->
+    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

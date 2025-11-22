@@ -14,6 +14,11 @@ PARAMS_URL = "http://basedeconciertos.uahurtado.cl:5099/api/status/get_params"
 def index():
     return render_template('index.html')
 
+@app.route('/test-db')
+def test_db():
+    """Página de prueba para verificar IndexedDB"""
+    return render_template('test-db.html')
+
 @app.route('/api/get_params', methods=['GET'])
 def get_params():
     """Fetch all available filter parameters from the API"""
@@ -26,6 +31,204 @@ def get_params():
     except requests.RequestException as e:
         print(f"Error fetching params: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/get_all_filter_values', methods=['GET'])
+def get_all_filter_values():
+    """
+    Extrae TODOS los valores posibles para cada parámetro de filtro.
+    Esto consulta la API con full_content=true y además hace peticiones
+    adicionales si es necesario para obtener listas completas.
+    """
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        
+        # Obtener parámetros base
+        params_response = requests.get(f"{PARAMS_URL}?full_content=true", headers=headers, timeout=30)
+        params_response.raise_for_status()
+        params_data = params_response.json()
+        
+        # Estructura para almacenar todos los valores
+        all_values = {
+            'composers': [],
+            'participants': [],
+            'cities': [],
+            'locations': [],
+            'instruments': [],
+            'event_types': [],
+            'cycles': [],
+            'organizations': [],
+            'ensembles': [],
+            'premiere_types': [],
+            'activities': [],
+            'genders': [],
+            'years': list(range(1945, 1996))  # Rango conocido
+        }
+        
+        # Si la API devuelve valores directamente, usarlos
+        if isinstance(params_data, dict):
+            for key in all_values.keys():
+                if key in params_data and isinstance(params_data[key], list):
+                    all_values[key] = params_data[key]
+                    print(f"Loaded {len(params_data[key])} {key} from params")
+        
+        # Extraer valores adicionales desde eventos si es necesario
+        print("Fetching sample events to extract additional values...")
+        events_response = requests.get(
+            f"{API_BASE_URL}/events", 
+            params={'page': 1, 'per_page': 100},
+            headers=headers,
+            timeout=30
+        )
+        
+        if events_response.status_code == 200:
+            events_data = events_response.json()
+            events = events_data.get('events', [])
+            
+            # Extraer valores únicos de los eventos
+            extracted = extract_unique_values_from_events(events)
+            
+            # Combinar con valores existentes (sin duplicados)
+            for key, values in extracted.items():
+                if key in all_values:
+                    existing_ids = {item['id'] for item in all_values[key] if isinstance(item, dict)}
+                    for value in values:
+                        if isinstance(value, dict) and value.get('id') not in existing_ids:
+                            all_values[key].append(value)
+        
+        # Asegurar que todo esté en el formato correcto {id, name}
+        for key in all_values.keys():
+            if key == 'years':
+                continue
+            all_values[key] = normalize_values(all_values[key])
+        
+        return jsonify({
+            'success': True,
+            'data': all_values,
+            'timestamp': int(time.time() * 1000),
+            'counts': {k: len(v) for k, v in all_values.items()}
+        })
+        
+    except requests.RequestException as e:
+        print(f"Error fetching filter values: {e}")
+        return jsonify({'error': str(e), 'success': False}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'success': False}), 500
+
+def extract_unique_values_from_events(events):
+    """Extrae valores únicos de una lista de eventos"""
+    composers = {}
+    participants = {}
+    cities = {}
+    locations = {}
+    instruments = {}
+    event_types = {}
+    cycles = {}
+    premiere_types = {}
+    activities = {}
+    genders = {}
+    
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        
+        # Event types
+        if event.get('event_type'):
+            et = event['event_type']
+            event_types[et] = {'name': et}
+        
+        # Cycles
+        if event.get('cycle') and event['cycle'] != 'Ninguno':
+            cy = event['cycle']
+            cycles[cy] = {'name': cy}
+        
+        # Locations
+        if event.get('location'):
+            loc = event['location']
+            locations[loc] = {'name': loc}
+            
+            # Extract city
+            city = extract_city_name(loc)
+            if city:
+                cities[city] = {'name': city}
+        
+        # Participants
+        for participant in event.get('participants', []):
+            if not isinstance(participant, dict):
+                continue
+            
+            name = participant.get('name')
+            if name:
+                participants[name] = {'name': name}
+            
+            # Gender
+            gender = participant.get('gender')
+            if gender:
+                genders[gender] = {'name': gender}
+            
+            # Activity and instrument
+            activity = participant.get('activity', '')
+            if activity:
+                activities[activity] = {'name': activity}
+                
+                if ' - ' in activity:
+                    instrument = activity.split(' - ')[1].strip()
+                    if instrument and instrument != 'Ninguno':
+                        instruments[instrument] = {'name': instrument}
+        
+        # Program (pieces and composers)
+        for piece in event.get('program', []):
+            if not isinstance(piece, dict):
+                continue
+            
+            # Premiere types
+            premiere = piece.get('premiere_type')
+            if premiere:
+                premiere_types[premiere] = {'name': premiere}
+            
+            # Composers
+            for composer in piece.get('composers', []):
+                if composer and composer != 'Desconocido':
+                    composers[composer] = {'name': composer}
+    
+    # Convert to lists with IDs
+    return {
+        'composers': [{'id': hash_string(k), 'name': k} for k in composers.keys()],
+        'participants': [{'id': hash_string(k), 'name': k} for k in participants.keys()],
+        'cities': [{'id': hash_string(k), 'name': k} for k in cities.keys()],
+        'locations': [{'id': hash_string(k), 'name': k} for k in locations.keys()],
+        'instruments': [{'id': hash_string(k), 'name': k} for k in instruments.keys()],
+        'event_types': [{'id': hash_string(k), 'name': k} for k in event_types.keys()],
+        'cycles': [{'id': hash_string(k), 'name': k} for k in cycles.keys()],
+        'premiere_types': [{'id': hash_string(k), 'name': k} for k in premiere_types.keys()],
+        'activities': [{'id': hash_string(k), 'name': k} for k in activities.keys()],
+        'genders': [{'id': hash_string(k), 'name': k} for k in genders.keys()],
+    }
+
+def normalize_values(values):
+    """Normaliza valores al formato {id, name}"""
+    normalized = []
+    seen_names = set()
+    
+    for item in values:
+        if isinstance(item, dict):
+            name = item.get('name', '')
+            if name and name not in seen_names:
+                normalized.append({
+                    'id': item.get('id', hash_string(name)),
+                    'name': name
+                })
+                seen_names.add(name)
+        elif isinstance(item, str) and item not in seen_names:
+            normalized.append({
+                'id': hash_string(item),
+                'name': item
+            })
+            seen_names.add(item)
+    
+    return sorted(normalized, key=lambda x: x['name'])
 
 @app.route('/api/monthly_ingestion', methods=['GET'])
 def monthly_ingestion():

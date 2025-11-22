@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test IndexedDB - Base de Conciertos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #1a1a1a; 
+            color: #e0e0e0; 
+            padding: 20px; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #4CAF50; margin-bottom: 20px; }
+        h2 { color: #2196F3; margin: 20px 0 10px; }
+        .section { 
+            background: #2a2a2a; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid #4CAF50;
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .status.success { background: #1b5e20; color: #c8e6c9; }
+        .status.error { background: #b71c1c; color: #ffcdd2; }
+        .status.info { background: #0d47a1; color: #bbdefb; }
+        .status.warning { background: #f57f17; color: #fff9c4; }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            margin: 5px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        button.secondary { background: #2196F3; }
+        button.secondary:hover { background: #1976D2; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        pre { 
+            background: #1a1a1a; 
+            padding: 15px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+            color: #00ff00;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-card { 
+            background: #1a1a1a; 
+            padding: 15px; 
+            border-radius: 4px; 
+            text-align: center; 
+        }
+        .stat-number { font-size: 32px; font-weight: bold; color: #4CAF50; }
+        .stat-label { color: #888; margin-top: 5px; }
+        .spinner { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 3px solid #f3f3f3; 
+            border-top: 3px solid #4CAF50; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de IndexedDB - Base de Conciertos</h1>
+        
+        <div class="section">
+            <h2>1. Estado del Sistema</h2>
+            <div id="system-status"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Acciones</h2>
+            <button onclick="testInit()">Inicializar DB</button>
+            <button onclick="testFetchParams()" class="secondary">Cargar Parámetros</button>
+            <button onclick="testStoreData()" class="secondary">Guardar Datos de Prueba</button>
+            <button onclick="testGetStats()" class="secondary">Ver Estadísticas</button>
+            <button onclick="testClearAll()" class="danger">Limpiar Todo</button>
+        </div>
+
+        <div class="section">
+            <h2>3. Estadísticas de la Base de Datos</h2>
+            <div id="stats-container" class="stats"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. Log de Operaciones</h2>
+            <div id="log-container"></div>
+        </div>
+
+        <div class="section">
+            <h2>5. Datos de Ejemplo</h2>
+            <pre id="sample-data"></pre>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
+    <script>
+        let db = null;
+        let logEntries = [];
+
+        // Logging utility
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.unshift({ timestamp, message, type });
+            updateLog();
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function updateLog() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = logEntries.slice(0, 20).map(entry => 
+                `<div class="status ${entry.type}">[${entry.timestamp}] ${entry.message}</div>`
+            ).join('');
+        }
+
+        function updateSystemStatus(message, type = 'info') {
+            const container = document.getElementById('system-status');
+            container.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function testInit() {
+            log('Iniciando prueba de inicialización...', 'info');
+            updateSystemStatus('Inicializando... <span class="spinner"></span>', 'info');
+            
+            try {
+                // Check if MusicEventsDB is available
+                if (!window.MusicEventsDB) {
+                    throw new Error('MusicEventsDB no está disponible en window');
+                }
+                
+                db = window.MusicEventsDB;
+                log('✓ MusicEventsDB encontrado en window', 'success');
+                
+                await db.init();
+                log('✓ Base de datos inicializada correctamente', 'success');
+                
+                updateSystemStatus('✓ Sistema listo y funcionando', 'success');
+                
+                // Auto-load stats
+                await testGetStats();
+            } catch (error) {
+                log('✗ Error: ' + error.message, 'error');
+                updateSystemStatus('✗ Error en la inicialización: ' + error.message, 'error');
+            }
+        }
+
+        async function testFetchParams() {
+            log('Obteniendo parámetros desde la API...', 'info');
+            
+            try {
+                const response = await fetch('/api/get_all_filter_values');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    log(`✓ Parámetros obtenidos: ${JSON.stringify(data.counts)}`, 'success');
+                    
+                    // Display sample
+                    const sampleContainer = document.getElementById('sample-data');
+                    sampleContainer.textContent = JSON.stringify({
+                        counts: data.counts,
+                        sample_composers: data.data.composers?.slice(0, 5) || [],
+                        sample_cities: data.data.cities?.slice(0, 5) || []
+                    }, null, 2);
+                    
+                    // Store in DB
+                    if (db && db.db) {
+                        log('Guardando parámetros en IndexedDB...', 'info');
+                        await db.storeFilterParams(data.data);
+                        log('✓ Parámetros guardados en IndexedDB', 'success');
+                        
+                        await testGetStats();
+                    }
+                } else {
+                    throw new Error('Respuesta inválida de la API');
+                }
+            } catch (error) {
+                log('✗ Error obteniendo parámetros: ' + error.message, 'error');
+            }
+        }
+
+        async function testStoreData() {
+            log('Guardando datos de prueba...', 'info');
+            
+            try {
+                if (!db) throw new Error('DB no inicializada');
+                
+                const testData = {
+                    events: [
+                        { id: 1, name: 'Concierto de Prueba 1', year: 1985 },
+                        { id: 2, name: 'Concierto de Prueba 2', year: 1986 }
+                    ],
+                    nodes: [
+                        { id: 'node1', label: 'Nodo 1', type: 'event', size: 10 },
+                        { id: 'node2', label: 'Nodo 2', type: 'composer', size: 8 }
+                    ],
+                    links: [
+                        { source: 'node1', target: 'node2', label: 'test' }
+                    ],
+                    params: {
+                        composers: [
+                            { id: 1, name: 'Bach' },
+                            { id: 2, name: 'Mozart' },
+                            { id: 3, name: 'Beethoven' }
+                        ],
+                        cities: [
+                            { id: 1, name: 'Santiago' },
+                            { id: 2, name: 'Valparaíso' }
+                        ]
+                    },
+                    timestamp: Date.now()
+                };
+                
+                await db.storeAllData(testData);
+                log('✓ Datos de prueba guardados', 'success');
+                
+                await testGetStats();
+            } catch (error) {
+                log('✗ Error guardando datos: ' + error.message, 'error');
+            }
+        }
+
+        async function testGetStats() {
+            log('Obteniendo estadísticas...', 'info');
+            
+            try {
+                if (!db) throw new Error('DB no inicializada');
+                
+                const stats = await db.getStats();
+                
+                if (!stats) {
+                    throw new Error('No se pudieron obtener estadísticas');
+                }
+                
+                log('✓ Estadísticas obtenidas', 'success');
+                
+                // Display stats
+                const container = document.getElementById('stats-container');
+                const statsHtml = Object.entries(stats)
+                    .filter(([key]) => key !== 'lastUpdate' && key !== 'isStale')
+                    .map(([key, value]) => `
+                        <div class="stat-card">
+                            <div class="stat-number">${value}</div>
+                            <div class="stat-label">${key}</div>
+                        </div>
+                    `).join('');
+                
+                container.innerHTML = statsHtml;
+                
+                // Show age info
+                if (stats.lastUpdate) {
+                    const age = Math.floor((Date.now() - stats.lastUpdate) / 1000 / 60);
+                    log(`Última actualización hace ${age} minutos`, 'info');
+                }
+                
+                if (stats.isStale) {
+                    log('⚠ Los datos están desactualizados (>30 días)', 'warning');
+                }
+            } catch (error) {
+                log('✗ Error obteniendo estadísticas: ' + error.message, 'error');
+            }
+        }
+
+        async function testClearAll() {
+            if (!confirm('¿Estás seguro de que quieres eliminar TODOS los datos?')) {
+                return;
+            }
+            
+            log('Limpiando toda la base de datos...', 'warning');
+            
+            try {
+                if (!db) throw new Error('DB no inicializada');
+                
+                await db.clearAllData();
+                log('✓ Todos los datos eliminados', 'success');
+                
+                await testGetStats();
+            } catch (error) {
+                log('✗ Error limpiando datos: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-initialize on load
+        window.addEventListener('load', async () => {
+            log('Página cargada, iniciando pruebas automáticas...', 'info');
+            await testInit();
+        });
+    </script>
+</body>
+</html>
