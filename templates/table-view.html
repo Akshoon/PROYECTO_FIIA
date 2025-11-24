@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base de Conciertos - Vista de Tabla</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/table-style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header con logo -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="logo" onclick="window.location.href='/'">
+                <div class="logo-icon"></div>
+                <div class="logo-text">
+                    <span class="logo-title">Base de Conciertos</span>
+                    <span class="logo-subtitle">Vista de Tabla</span>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <button class="nav-btn" onclick="window.location.href='/'">
+                    <i class="fas fa-project-diagram"></i> Vista de Grafo
+                </button>
+                <button class="nav-btn active">
+                    <i class="fas fa-table"></i> Vista de Tabla
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="events">
+                    <i class="fas fa-music"></i> Eventos
+                </button>
+                <button class="tab-btn" data-tab="participants">
+                    <i class="fas fa-users"></i> Participantes
+                </button>
+                <button class="tab-btn" data-tab="composers">
+                    <i class="fas fa-pen-fancy"></i> Compositores
+                </button>
+                <button class="tab-btn" data-tab="cities">
+                    <i class="fas fa-city"></i> Ciudades
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-wrapper">
+            <!-- Sidebar Filters -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Filtros</h3>
+                    <button class="clear-filters-btn" onclick="clearAllFilters()">
+                        <i class="fas fa-times"></i> Limpiar
+                    </button>
+                </div>
+
+                <!-- Category Filters -->
+                <div class="filter-section">
+                    <h4>Categorías</h4>
+                    <div class="filter-buttons" id="category-filters">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Search Filters -->
+                <div class="filter-section">
+                    <h4>Búsqueda</h4>
+                    <input type="text" class="filter-input" id="search-input" placeholder="Buscar...">
+                </div>
+
+                <!-- Year Filter -->
+                <div class="filter-section">
+                    <h4>Año</h4>
+                    <div class="year-range">
+                        <input type="number" class="filter-input small" id="year-from" placeholder="Desde" min="1945" max="2023">
+                        <span>-</span>
+                        <input type="number" class="filter-input small" id="year-to" placeholder="Hasta" min="1945" max="2023">
+                    </div>
+                </div>
+
+                <!-- Advanced Filters -->
+                <div class="filter-section">
+                    <h4>Filtros Avanzados</h4>
+                    <div class="advanced-filters">
+                        <input type="text" class="filter-input" id="composer-filter" placeholder="Compositor" list="composers-list">
+                        <datalist id="composers-list"></datalist>
+
+                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad" list="cities-list">
+                        <datalist id="cities-list"></datalist>
+
+                        <input type="text" class="filter-input" id="participant-filter" placeholder="Participante" list="participants-list">
+                        <datalist id="participants-list"></datalist>
+                    </div>
+                </div>
+
+                <!-- Apply Filters Button -->
+                <button class="apply-filters-btn" onclick="applyFilters()">
+                    <i class="fas fa-search"></i> Aplicar Filtros
+                </button>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <div class="results-info" id="results-info">
+                            Cargando...
+                        </div>
+                    </div>
+                    <div class="toolbar-right">
+                        <div class="per-page-selector">
+                            <label>Mostrar:</label>
+                            <select id="per-page-select" onchange="changePerPage()">
+                                <option value="25">25</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                        <button class="icon-btn" onclick="exportData()">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="icon-btn" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="table-container">
+                    <table class="data-table" id="data-table">
+                        <thead>
+                            <tr id="table-headers">
+                                <!-- Se llena dinámicamente -->
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <!-- Se llena dinámicamente -->
+                </div>
+
+                <!-- Loading Overlay -->
+                <div class="loading-overlay" id="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <p>Cargando datos...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/table-view.js') }}"></script>
+</body>
+</html>

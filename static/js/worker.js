@@ -128,7 +128,9 @@ function filterGraphData(nodes, links, filters) {
 
             // Location filter
             if (filters.location_q && (nodeType === 'location' || nodeType === 'city')) {
-                if (label.includes(filters.location_q.toLowerCase())) {
+                const filterLoc = filters.location_q.toLowerCase().trim();
+                const nodeLabel = label.toLowerCase().trim();
+                if (nodeLabel.includes(filterLoc)) {
                     matches = true;
                 }
             }
@@ -295,9 +297,9 @@ function processEventsToGraph(events, filters) {
         const location = event.location || '';
         if (location) {
             // Apply location filter
-            if (!filters.location_q || 
-                location.toLowerCase().includes(filters.location_q.toLowerCase())) {
-                
+            const filterLoc = filters.location_q ? filters.location_q.toLowerCase().trim() : '';
+            const locLower = location.toLowerCase().trim();
+            if (!filters.location_q || locLower.includes(filterLoc)) {
                 const locationId = `location_${hashString(location)}`;
                 if (!nodeMap.has(locationId)) {
                     nodes.push({

@@ -14,6 +14,11 @@ PARAMS_URL = "http://basedeconciertos.uahurtado.cl:5099/api/status/get_params"
 def index():
     return render_template('index.html')
 
+@app.route('/table')
+def table_view():
+    """Página de vista de tabla"""
+    return render_template('table-view.html')
+
 @app.route('/test-db')
 def test_db():
     """Página de prueba para verificar IndexedDB"""

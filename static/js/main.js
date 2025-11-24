@@ -14,7 +14,7 @@
     let initialized = false;
 
     const MIN_YEAR = 1945;
-    const MAX_YEAR = 2023;
+    const MAX_YEAR = 1995;
 
     // DOM Elements
     let elements = {};
@@ -34,6 +34,55 @@
         
         // Cache DOM elements
         cacheElements();
+
+// ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
+
+// Verificar si hay filtros guardados en sessionStorage desde table-view.js
+function checkForTableFilters() {
+    const graphFilters = sessionStorage.getItem('graphFiltersFromTable');
+    if (graphFilters) {
+        try {
+            const filters = JSON.parse(graphFilters);
+            console.log('📊 Filtros recibidos de table-view:', filters);
+
+            // Aplicar filtros según el tipo
+            if (filters.tab === 'events' && filters.event) {
+                document.getElementById('searchInput').value = filters.event;
+                if (filters.year) {
+                    document.getElementById('yearSelect').value = filters.year;
+                }
+                if (filters.location) {
+                    document.getElementById('locationSelect').value = filters.location;
+                }
+            } else if (filters.tab === 'participants' && filters.participant) {
+                document.getElementById('participantSelect').value = filters.participant;
+                if (filters.activity) {
+                    document.getElementById('activitySelect').value = filters.activity;
+                }
+            } else if (filters.tab === 'composers' && filters.composer) {
+                document.getElementById('composerSelect').value = filters.composer;
+            } else if (filters.tab === 'cities' && filters.city) {
+                document.getElementById('locationSelect').value = filters.city;
+            }
+
+            // Limpiar sessionStorage
+            sessionStorage.removeItem('graphFiltersFromTable');
+
+            // Aplicar filtros automáticamente después de un pequeño delay
+            setTimeout(() => {
+                applyFilters();
+            }, 500);
+
+            return true;
+        } catch (e) {
+            console.error('Error parsing table filters:', e);
+            sessionStorage.removeItem('graphFiltersFromTable');
+        }
+    }
+    return false;
+}
+
+
 
         // Initialize worker
         initWorker();
@@ -69,6 +118,7 @@
             loadBtn: document.getElementById('load-btn'),
             monthlyBtn: document.getElementById('monthly-btn'),
             clearBtn: document.getElementById('clear-btn'),
+            clearCacheBtn: document.getElementById('clear-cache-btn'),
             graphSearchInput: document.getElementById('graph-search-input')
         };
     }
@@ -104,19 +154,89 @@
             const cached = await db.getGraphData();
             if (cached.nodes && cached.nodes.length > 0) {
                 graphData = cached;
-                console.log('Loaded cached graph data:', cached.nodes.length, 'nodes');
+                console.log('✓ Loaded cached graph data:', cached.nodes.length, 'nodes');
+            }
+
+            // Try to load cached events
+            const cachedEvents = await db.getAllEvents();
+            if (cachedEvents && cachedEvents.length > 0) {
+                allEvents = cachedEvents;
+                console.log('✓ Loaded cached events: ' + cachedEvents.length + ' events');
+            }
+
+            // Try to load cached filter params
+            const cachedParams = await db.getAllFilterParams();
+            if (cachedParams && Object.keys(cachedParams).some(k => cachedParams[k].length > 0)) {
+                filterParams = cachedParams;
+                console.log('✓ Loaded cached filter params');
+                populateFilterDropdowns();
             }
 
             // Check if we need to refresh data
-            const isStale = await db.isDataStale(30);
-            if (isStale) {
-                console.log('Cached data is stale, will refresh on first load');
+            const lastUpdate = await db.getLastUpdate();
+            if (lastUpdate) {
+                const ageInDays = (Date.now() - lastUpdate) / (1000 * 60 * 60 * 24);
+                let ageText;
+                if (ageInDays < 1) {
+                    ageText = Math.floor(ageInDays * 24) + ' horas';
+                } else {
+                    ageText = Math.floor(ageInDays) + ' días';
+                }
+                console.log('Datos del caché tienen ' + ageText + ' de antigüedad');
+                
+                const isStale = await db.isDataStale(30);
+                if (isStale) {
+                    console.log('⚠ Cached data is stale (>30 days), consider refreshing');
+                }
+                
+                // Update cache status display
+                updateCacheStatus(lastUpdate, isStale);
+            } else {
+                console.log('No cached data found');
+                updateCacheStatus(null, false);
             }
         } catch (err) {
             console.error('Database error:', err);
             // Continue without database support
             console.warn('Continuing without IndexedDB support');
         }
+    }
+
+    function updateCacheStatus(lastUpdate, isStale) {
+        const statusEl = document.getElementById('cache-status');
+        if (!statusEl) return;
+
+        if (!lastUpdate) {
+            statusEl.style.display = 'none';
+            return;
+        }
+
+        const ageInDays = (Date.now() - lastUpdate) / (1000 * 60 * 60 * 24);
+        let ageText;
+        if (ageInDays < 1) {
+            ageText = Math.floor(ageInDays * 24) + ' horas';
+        } else {
+            ageText = Math.floor(ageInDays) + ' días';
+        }
+
+        const date = new Date(lastUpdate).toLocaleDateString('es-CL', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        if (isStale) {
+            const btnHtml = '<button onclick="window.handleMonthlyClickGlobal()" style="background: #ff9800; border: none; padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; color: white;">Actualizar Ahora</button>';
+            statusEl.innerHTML = '⚠ Datos en caché de hace ' + ageText + ' (' + date + '). ' + btnHtml;
+            statusEl.style.color = '#ff9800';
+        } else {
+            statusEl.innerHTML = '✓ Datos cargados desde caché local (actualizado ' + ageText + ' atrás - ' + date + ')';
+            statusEl.style.color = '#4CAF50';
+        }
+
+        statusEl.style.display = 'block';
     }
 
     async function loadFilterParameters() {
@@ -145,6 +265,7 @@
 
             // If not in cache, fetch from API
             await fetchFilterParamsFromAPI();
+            showLoading(false);
         } catch (err) {
             console.error('Error loading filter parameters:', err);
             showLoading(false);
@@ -158,7 +279,7 @@
             const response = await fetch('/api/get_all_filter_values');
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error('HTTP ' + response.status);
             }
 
             const data = await response.json();
@@ -245,10 +366,17 @@
         
         console.log('Initializing graph...');
         
+        // Check if we have cached data
         if (graphData.nodes && graphData.nodes.length > 0) {
+            console.log('Using cached graph data');
             renderGraph(graphData.nodes, graphData.links);
+            showMessage('✓ Datos cargados desde caché local. Use "Cargar Todo" para actualizar.');
+            setTimeout(() => {
+                renderGraph(graphData.nodes, graphData.links);
+            }, 2000);
         } else {
-            loadInitialData();
+            // No cached data, show instructions
+            showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
         }
     }
 
@@ -259,13 +387,13 @@
         
         try {
             const response = await fetch('/api/monthly_ingestion');
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             
             const data = await response.json();
             console.log('Loaded data:', {
-                events: data.events?.length || 0,
-                nodes: data.nodes?.length || 0,
-                links: data.links?.length || 0
+                events: data.events ? data.events.length : 0,
+                nodes: data.nodes ? data.nodes.length : 0,
+                links: data.links ? data.links.length : 0
             });
 
             if (data.nodes && data.nodes.length > 0) {
@@ -284,7 +412,8 @@
                 renderGraph(graphData.nodes, graphData.links);
             } else if (data.events && data.events.length > 0) {
                 allEvents = data.events;
-                processEventsWithWorker(allEvents, { limit: 500 });
+                // Process all events, no limit
+                processEventsWithWorker(allEvents, {});
             } else {
                 showMessage('No hay datos disponibles. Intente "Cargar Todo".');
             }
@@ -306,6 +435,9 @@
         if (elements.clearBtn) {
             elements.clearBtn.addEventListener('click', handleClearClick);
         }
+        if (elements.clearCacheBtn) {
+            elements.clearCacheBtn.addEventListener('click', handleClearCacheClick);
+        }
     }
 
     function handleLoadClick() {
@@ -322,11 +454,11 @@
     }
 
     async function handleMonthlyClick() {
-        showLoading(true, 'Cargando todos los datos...');
+        showLoading(true, 'Cargando todos los datos desde la API...');
         
         try {
             const response = await fetch('/api/monthly_ingestion');
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             
             const data = await response.json();
             
@@ -335,23 +467,69 @@
                 return;
             }
 
+            console.log('Monthly data received:', {
+                events: data.events ? data.events.length : 0,
+                nodes: data.nodes ? data.nodes.length : 0,
+                links: data.links ? data.links.length : 0,
+                params: data.params ? Object.keys(data.params).length : 0
+            });
+
             allEvents = data.events || [];
             
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
                 
-                // Store all data in IndexedDB
-                if (db) await db.storeAllData(data);
+                // Store ALL data in IndexedDB (events, nodes, links, params)
+                if (db) {
+                    showLoading(true, 'Guardando ' + allEvents.length + ' eventos localmente...');
+                    try {
+                        await db.storeAllData(data);
+                        console.log('✓ All data saved to IndexedDB');
+                        
+                        // Update cache status
+                        const lastUpdate = await db.getLastUpdate();
+                        updateCacheStatus(lastUpdate, false);
+                        
+                        // Get and show storage stats
+                        const stats = await db.getStats();
+                        if (stats) {
+                            console.log('📊 Storage Stats:', stats);
+                            const msg = '✓ Datos guardados localmente<br><br>' +
+                                '📦 ' + stats.events + ' eventos<br>' +
+                                '🎵 ' + stats.nodes + ' nodos<br>' +
+                                '🔗 ' + stats.links + ' enlaces<br>' +
+                                '👤 ' + stats.composers + ' compositores<br>' +
+                                '🏙️ ' + stats.cities + ' ciudades<br>' +
+                                '🎹 ' + stats.instruments + ' instrumentos<br><br>' +
+                                '💾 Tamaño aproximado: ' + stats.estimatedSizeMB + ' MB<br><br>' +
+                                '<small>La próxima vez cargarán instantáneamente.</small>';
+                            showMessage(msg);
+                        } else {
+                            showMessage('✓ Datos guardados localmente. La próxima vez cargarán instantáneamente.');
+                        }
+                        
+                        // Small delay to show the message
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    } catch (err) {
+                        console.error('Error saving to IndexedDB:', err);
+                        showMessage('⚠ Datos cargados pero no se pudieron guardar localmente.');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
                 
-                // Update filter params
+                // Update filter params if included
                 if (data.params) {
                     filterParams = data.params;
                     populateFilterDropdowns();
+                    console.log('✓ Filter parameters updated');
                 }
                 
                 renderGraph(graphData.nodes, graphData.links);
             } else if (allEvents.length > 0) {
-                processEventsWithWorker(allEvents, { limit: 500 });
+                // Process all events, no default limit
+                processEventsWithWorker(allEvents, {});
+            } else {
+                showMessage('No se recibieron datos del servidor.');
             }
             
             console.log('Monthly data loaded:', allEvents.length, 'events');
@@ -360,6 +538,9 @@
             showMessage('Error cargando datos. Verifique la conexión.');
         }
     }
+
+    // Make handleMonthlyClick available globally for cache status button
+    window.handleMonthlyClickGlobal = handleMonthlyClick;
 
     function handleClearClick() {
         if (elements.yearSelect) elements.yearSelect.value = '';
@@ -451,18 +632,31 @@
 
     // ==================== RENDERING ====================
 
-    function showLoading(show, message = 'Cargando datos...') {
+    function showLoading(show, message) {
+        if (!message) {
+            message = 'Cargando datos...';
+        }
         if (elements.loadingOverlay) {
             elements.loadingOverlay.style.display = show ? 'flex' : 'none';
             const textEl = elements.loadingOverlay.querySelector('span');
-            if (textEl) textEl.textContent = message;
+            if (textEl) textEl.innerHTML = message;
         }
     }
 
     function showMessage(msg) {
         showLoading(false);
         if (elements.sigmaContainer) {
-            elements.sigmaContainer.innerHTML = `<div class="message-display">${msg}</div>`;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-display';
+            messageDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: 16px; line-height: 1.8; color: #e0e0e0; padding: 40px;';
+            
+            const innerDiv = document.createElement('div');
+            innerDiv.style.maxWidth = '600px';
+            innerDiv.innerHTML = msg;
+            
+            messageDiv.appendChild(innerDiv);
+            elements.sigmaContainer.innerHTML = '';
+            elements.sigmaContainer.appendChild(messageDiv);
         }
     }
 
@@ -531,16 +725,19 @@
             const Graph = window.graphology.Graph || window.graphology;
             currentGraph = new Graph({ multi: true, allowSelfLoops: false });
 
-            // Add nodes
+            // Add nodes - LIMPIO, sin marcas
             for (const node of validNodes) {
                 currentGraph.addNode(node.id, {
                     label: node.label,
                     size: node.size,
                     color: getNodeColor(node.type),
                     nodeType: node.type,
-                    hidden: false
+                    hidden: false,
+                    highlighted: false,  // ✅ NUEVO: Asegurar que NO está marcado
+                    selected: false      // ✅ NUEVO: Asegurar que NO está seleccionado
                 });
             }
+
 
             // Add edges
             for (const link of validLinks) {
@@ -561,6 +758,7 @@
 
             // Initialize Sigma
             sigma = new Sigma(currentGraph, elements.sigmaContainer, {
+                
                 renderLabels: true,
                 labelRenderedSizeThreshold: 8,
                 labelFont: 'Inter, Arial, sans-serif',
@@ -574,6 +772,21 @@
             });
 
             setupSigmaInteractions();
+
+                currentGraph.forEachNode((node, attrs) => {
+                currentGraph.setNodeAttribute(node, 'highlighted', false);
+                currentGraph.setNodeAttribute(node, 'selected', false);
+                currentGraph.setNodeAttribute(node, 'hidden', false);
+                currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
+            });
+
+            currentGraph.forEachEdge(edge => {
+                currentGraph.setEdgeAttribute(edge, 'hidden', false);
+            });
+
+            sigma.refresh();
+            console.log('✓ Nodos inicializados en estado limpio');
+
             updateStatistics(validNodes, validLinks);
 
             console.log('Graph rendered successfully');
@@ -585,20 +798,27 @@
     }
 
     function getNodeColor(type) {
+    // ✨ PALETA MEJORADA: Colores vibrantes y diferenciadores
         const colors = {
-            'event': '#34495e',
-            'piece': '#7f8c8d',
-            'composer': '#e74c3c',
-            'participant': '#95a5a6',
-            'city': '#bdc3c7',
-            'instrument': '#3498db',
-            'event_type': '#9b59b6',
-            'cycle': '#1abc9c',
-            'premiere_type': '#f39c12',
-            'location': '#bdc3c7'
+            'event':          '#FF6B6B',      // Rojo vibrante - Eventos
+            'piece':          '#4ECDC4',      // Turquesa - Piezas musicales
+            'composer':       '#FFE66D',      // Amarillo dorado - Compositores
+            'participant':    '#95E1D3',      // Verde menta - Participantes
+            'city':           '#A8E6CF',      // Verde claro - Ciudades
+            'instrument':     '#FF8B94',      // Rosa coral - Instrumentos
+            'event_type':     '#8B7FFF',      // Púrpura - Tipos de evento
+            'cycle':          '#00D4FF',      // Azul cielo - Ciclos
+            'premiere_type':  '#FFB84D',      // Naranja - Tipo de estreno
+            'location':       '#A8E6CF',      // Verde - Ubicaciones
+            'activity':       '#FF6B9D',      // Magenta - Actividades
+            'gender':         '#6BCB77',      // Verde - Género
+            'person':         '#95E1D3',      // Verde menta - Personas
+            'unknown':        '#CCCCCC'       // Gris - Desconocido
         };
-        return colors[type] || '#95a5a6';
-    }
+        
+        return colors[type] || colors['unknown'];
+}
+
 
     function applyLayout(graph) {
         const nodeCount = graph.order;
@@ -750,17 +970,23 @@
 
     function resetHighlight() {
         if (!currentGraph) return;
-        
+
         currentGraph.forEachNode((node, attrs) => {
+            // ✅ NUEVO: Resetear COMPLETAMENTE el estado
             currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
+            currentGraph.setNodeAttribute(node, 'hidden', false);
+            currentGraph.setNodeAttribute(node, 'highlighted', false);
+            currentGraph.setNodeAttribute(node, 'selected', false);
         });
 
         currentGraph.forEachEdge(edge => {
             currentGraph.setEdgeAttribute(edge, 'color', '#404040');
+            currentGraph.setEdgeAttribute(edge, 'hidden', false);
         });
 
         sigma.refresh();
     }
+
 
     function updateStatistics(nodes, links) {
         const setVal = (id, val) => {
@@ -806,43 +1032,164 @@
 
     function setupSearchFunctionality() {
         const input = elements.graphSearchInput;
-        if (!input) return;
+        const searchBtn = document.getElementById('graph-search-btn');
 
+        if (!input) {
+            console.error('❌ Graph search input not found');
+            return;
+        }
+
+        console.log('🔍 Configurando búsqueda automática...');
+
+        // Variable para el timeout del debounce
+        let searchTimeout = null;
+
+        // Función principal de búsqueda
         const doSearch = () => {
             const term = input.value.toLowerCase().trim();
-            if (!currentGraph || !sigma) return;
+
+            // Verificar si el grafo existe
+            if (!currentGraph || !sigma) {
+                if (term) {
+                    console.warn('⚠ Grafo no inicializado. Cargue los datos primero.');
+                }
+                return;
+            }
+
+            console.log('🔎 Buscando:', term || '(vacío - mostrando todo)');
 
             if (!term) {
-                currentGraph.forEachNode(n => currentGraph.setNodeAttribute(n, 'hidden', false));
-                currentGraph.forEachEdge(e => currentGraph.setEdgeAttribute(e, 'hidden', false));
+                // Si no hay término de búsqueda, RESETEAR COMPLETAMENTE
+                currentGraph.forEachNode(n => {
+                    currentGraph.setNodeAttribute(n, 'hidden', false);
+                    currentGraph.setNodeAttribute(n, 'highlighted', false);
+                    currentGraph.setNodeAttribute(n, 'selected', false);  // ✅ NUEVO
+                    const attrs = currentGraph.getNodeAttributes(n);
+                    currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
+                });
+
+                currentGraph.forEachEdge(e => {
+                    currentGraph.setEdgeAttribute(e, 'hidden', false);
+                });
+
+                sigma.refresh();  // ✅ IMPORTANTE: Refrescar
+                console.log('✓ Mostrando todos los nodos - estado limpio');
             } else {
+                // Buscar nodos que coincidan
                 const matches = new Set();
+                let matchCount = 0;
+
                 currentGraph.forEachNode((node, attrs) => {
-                    if (attrs.label?.toLowerCase().includes(term)) {
+                    const label = (attrs.label || '').toLowerCase();
+                    if (label.includes(term)) {
                         matches.add(node);
+                        matchCount++;
                     }
                 });
 
-                const expanded = new Set(matches);
-                matches.forEach(m => {
-                    currentGraph.neighbors(m).forEach(n => expanded.add(n));
-                });
+                console.log('📊 Encontradas', matchCount, 'coincidencias directas');
 
-                currentGraph.forEachNode(n => {
-                    currentGraph.setNodeAttribute(n, 'hidden', !expanded.has(n));
-                });
+                if (matchCount === 0) {
+                    // Si no hay coincidencias, mostrar todos los nodos sin destacar
+                    currentGraph.forEachNode(n => {
+                        currentGraph.setNodeAttribute(n, 'hidden', false);
+                        currentGraph.setNodeAttribute(n, 'highlighted', false);
+                        const attrs = currentGraph.getNodeAttributes(n);
+                        currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
+                    });
+                    currentGraph.forEachEdge(e => {
+                        currentGraph.setEdgeAttribute(e, 'hidden', false);
+                    });
+                    console.log('⚠ No se encontraron resultados para "' + term + '"');
+                } else {
+                    // Expandir para incluir vecinos
+                    const expanded = new Set(matches);
+                    matches.forEach(m => {
+                        try {
+                            const neighbors = currentGraph.neighbors(m);
+                            neighbors.forEach(n => expanded.add(n));
+                        } catch (err) {
+                            console.warn('⚠ Error obteniendo vecinos:', err);
+                        }
+                    });
 
-                currentGraph.forEachEdge((e, attrs, source, target) => {
-                    currentGraph.setEdgeAttribute(e, 'hidden', 
-                        !expanded.has(source) || !expanded.has(target));
-                });
+                    // Ocultar nodos que no coinciden y destacar los que sí
+                    currentGraph.forEachNode(n => {
+                        const isVisible = expanded.has(n);
+                        const isMatch = matches.has(n);
+
+                        currentGraph.setNodeAttribute(n, 'hidden', !isVisible);
+                        currentGraph.setNodeAttribute(n, 'highlighted', isMatch);
+
+                        if (isMatch) {
+                            // Nodos coincidentes en dorado
+                            currentGraph.setNodeAttribute(n, 'color', '#FFD700');
+                        } else if (isVisible) {
+                            // Vecinos con su color normal
+                            const attrs = currentGraph.getNodeAttributes(n);
+                            currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
+                        }
+                    });
+
+                    // Mostrar solo aristas entre nodos visibles
+                    currentGraph.forEachEdge((e, attrs, source, target) => {
+                        const isVisible = expanded.has(source) && expanded.has(target);
+                        currentGraph.setEdgeAttribute(e, 'hidden', !isVisible);
+                    });
+
+                    console.log('✓ Mostrando', matchCount, 'coincidencias +', (expanded.size - matchCount), 'vecinos =', expanded.size, 'nodos totales');
+                }
             }
 
+            // Refrescar la visualización
             sigma.refresh();
         };
 
-        input.addEventListener('input', doSearch);
-        input.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
+        // Función de búsqueda con debounce (espera 300ms después de dejar de escribir)
+        const debouncedSearch = () => {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            searchTimeout = setTimeout(doSearch, 300);
+        };
+
+        // IMPORTANTE: Limpiar event listeners anteriores
+        // Clonar el input para eliminar todos los listeners previos
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+
+        // Actualizar la referencia en elements
+        elements.graphSearchInput = newInput;
+
+        // Agregar event listener para búsqueda automática (mientras se escribe)
+        newInput.addEventListener('input', debouncedSearch);
+
+        // Agregar event listener para Enter (búsqueda inmediata sin debounce)
+        newInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                doSearch();
+            }
+        });
+
+        // Configurar botón de búsqueda (si existe)
+        if (searchBtn) {
+            searchBtn.onclick = () => {
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                doSearch();
+            };
+            console.log('✓ Botón de búsqueda configurado');
+        }
+
+        console.log('✅ Búsqueda automática configurada correctamente');
+        console.log('   - Escribe en el campo para buscar automáticamente');
+        console.log('   - Presiona Enter para búsqueda inmediata');
+        console.log('   - Debounce: 300ms');
     }
 
 })();

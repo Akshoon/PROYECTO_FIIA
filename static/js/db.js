@@ -362,19 +362,20 @@ class MusicEventsDB {
             'ensembles', 'premiere_types', 'activities', 'genders'
         ];
         
-        const transaction = this.db.transaction(allStores, 'readwrite');
-        
-        for (const name of allStores) {
-            await this.clearStore(transaction.objectStore(name));
+        // Clear each store in separate transactions to avoid conflicts
+        for (const storeName of allStores) {
+            try {
+                const transaction = this.db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                await this.clearStore(store);
+                await this.waitForTransaction(transaction);
+                console.log(`DB: Cleared ${storeName}`);
+            } catch (error) {
+                console.warn(`DB: Error clearing ${storeName}:`, error);
+            }
         }
-
-        return new Promise((resolve, reject) => {
-            transaction.oncomplete = () => {
-                console.log('DB: All data cleared');
-                resolve();
-            };
-            transaction.onerror = () => reject(transaction.error);
-        });
+        
+        console.log('DB: All data cleared');
     }
 
     async getStats() {
@@ -399,6 +400,13 @@ class MusicEventsDB {
             const lastUpdate = await this.getLastUpdate();
             stats.lastUpdate = lastUpdate;
             stats.isStale = await this.isDataStale();
+            
+            // Calculate human-readable size (approximate)
+            const totalItems = Object.values(stats).reduce((sum, val) => 
+                typeof val === 'number' ? sum + val : sum, 0
+            );
+            stats.totalItems = totalItems;
+            stats.estimatedSizeMB = (totalItems * 500 / 1024 / 1024).toFixed(2); // Rough estimate
             
             return stats;
         } catch (error) {
