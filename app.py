@@ -1,11 +1,23 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, make_response
 import requests
 import time
 import json
 from flask_cors import CORS
+from flask_caching import Cache
 
 app = Flask(__name__)
 CORS(app)
+
+# ==================== CONFIGURACIÓN DE REDIS ====================
+app.config['CACHE_TYPE'] = 'redis'
+app.config['CACHE_REDIS_HOST'] = 'localhost'
+app.config['CACHE_REDIS_PORT'] = 6379
+app.config['CACHE_REDIS_DB'] = 0
+app.config['CACHE_DEFAULT_TIMEOUT'] = 86400  # 24 horas en segundos
+app.config['CACHE_KEY_PREFIX'] = 'musicevents_'
+
+cache = Cache(app)
+# ================================================================
 
 API_BASE_URL = "http://basedeconciertos.uahurtado.cl:5099/api"
 PARAMS_URL = "http://basedeconciertos.uahurtado.cl:5099/api/status/get_params"
@@ -23,6 +35,129 @@ def table_view():
 def test_db():
     """Página de prueba para verificar IndexedDB"""
     return render_template('test-db.html')
+
+# ==================== ENDPOINT CON REDIS CACHE ====================
+@app.route('/api/monthly_ingestion', methods=['GET'])
+@cache.cached(timeout=86400, query_string=True)  # <-- CACHEO AUTOMÁTICO
+def monthly_ingestion():
+    print("⚙️ Monthly ingestion endpoint called - PROCESSING (not from cache)")
+    try:
+        # First, fetch all available parameters
+        print("Fetching API parameters...")
+        api_params = fetch_api_params()
+        print(f"API params fetched: {list(api_params.keys()) if api_params else 'None'}")
+
+        # Then fetch all events
+        all_events = []
+        page = 1
+        per_page = 100
+
+        while True:
+            try:
+                params = {'page': page, 'per_page': per_page}
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+                events = data.get('events') or []
+                
+                if not events:
+                    break
+                
+                all_events.extend(events)
+                page += 1
+                print(f"Fetched page {page-1}, total events: {len(all_events)}")
+                
+            except requests.RequestException as e:
+                print(f"Error fetching page {page}: {e}")
+                break
+
+        print(f"✅ Total events fetched: {len(all_events)}")
+
+        # Extract params from events as fallback/supplement
+        print("Extracting params from events...")
+        try:
+            extracted_params = extract_params_from_events(all_events)
+            
+            # Merge API params with extracted params
+            if api_params:
+                merged_params = merge_params(api_params, extracted_params)
+            else:
+                merged_params = extracted_params
+            
+            print(f"Params ready: {len(merged_params.get('composers', []))} composers, {len(merged_params.get('cities', []))} cities")
+        
+        except Exception as e:
+            print(f"Error extracting params: {e}")
+            import traceback
+            traceback.print_exc()
+            merged_params = api_params or {'composers': [], 'cities': [], 'instruments': [], 'event_types': [], 'cycles': [], 'premiere_types': []}
+
+        # Process events to graph
+        print("Processing events into graph format...")
+        try:
+            nodes, links = process_events_to_graph(all_events)
+            print(f"✅ Graph complete: {len(nodes)} nodes, {len(links)} links")
+        except Exception as e:
+            print(f"Error processing graph: {e}")
+            import traceback
+            traceback.print_exc()
+            nodes, links = [], []
+
+        return jsonify({
+            'params': merged_params,
+            'events': all_events,  # <-- SIN LÍMITE [:1000]
+            'nodes': nodes,
+            'links': links,
+            'total_events': len(all_events),
+            'timestamp': int(time.time() * 1000),
+            'cached': False  # Indicador de que es data fresca
+        })
+
+    except Exception as e:
+        print(f"Error in monthly ingestion: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify(get_fallback_data())
+
+# ==================== ENDPOINT PARA LIMPIAR CACHE ====================
+@app.route('/api/clear_cache', methods=['POST'])
+def clear_cache():
+    """Limpia todo el caché de Redis"""
+    try:
+        cache.clear()
+        print("✅ Redis cache cleared successfully")
+        return jsonify({
+            'success': True,
+            'message': 'Caché del servidor limpiado exitosamente'
+        })
+    except Exception as e:
+        print(f"Error clearing cache: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error limpiando caché: {str(e)}'
+        }), 500
+
+# ==================== ENDPOINT PARA VER STATUS DEL CACHE ====================
+@app.route('/api/cache_status', methods=['GET'])
+def cache_status():
+    """Muestra información sobre el estado del caché"""
+    try:
+        # Intentar obtener datos cacheados
+        cache_key = 'view//api/monthly_ingestion'
+        cached_data = cache.get(cache_key)
+        
+        return jsonify({
+            'redis_connected': True,
+            'cache_exists': cached_data is not None,
+            'cache_timeout': app.config['CACHE_DEFAULT_TIMEOUT'],
+            'cache_prefix': app.config['CACHE_KEY_PREFIX']
+        })
+    except Exception as e:
+        return jsonify({
+            'redis_connected': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/get_params', methods=['GET'])
 def get_params():
@@ -235,79 +370,6 @@ def normalize_values(values):
     
     return sorted(normalized, key=lambda x: x['name'])
 
-@app.route('/api/monthly_ingestion', methods=['GET'])
-def monthly_ingestion():
-    print("Monthly ingestion endpoint called")
-    try:
-        # First, fetch all available parameters
-        print("Fetching API parameters...")
-        api_params = fetch_api_params()
-        print(f"API params fetched: {list(api_params.keys()) if api_params else 'None'}")
-        
-        # Then fetch all events
-        all_events = []
-        page = 1
-        per_page = 100
-
-        while True:
-            try:
-                params = {'page': page, 'per_page': per_page}
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=60)
-                response.raise_for_status()
-                data = response.json()
-                events = data.get('events') or []
-                if not events:
-                    break
-                all_events.extend(events)
-                page += 1
-                print(f"Fetched page {page-1}, total events: {len(all_events)}")
-            except requests.RequestException as e:
-                print(f"Error fetching page {page}: {e}")
-                break
-
-        print(f"Total events fetched: {len(all_events)}")
-        
-        # Extract params from events as fallback/supplement
-        print("Extracting params from events...")
-        try:
-            extracted_params = extract_params_from_events(all_events)
-            # Merge API params with extracted params
-            if api_params:
-                merged_params = merge_params(api_params, extracted_params)
-            else:
-                merged_params = extracted_params
-            print(f"Params ready: {len(merged_params.get('composers', []))} composers, {len(merged_params.get('cities', []))} cities")
-        except Exception as e:
-            print(f"Error extracting params: {e}")
-            import traceback
-            traceback.print_exc()
-            merged_params = api_params or {'composers': [], 'cities': [], 'instruments': [], 'event_types': [], 'cycles': [], 'premiere_types': []}
-
-        # Process events to graph
-        print("Processing events into graph format...")
-        try:
-            nodes, links = process_events_to_graph(all_events)
-            print(f"Graph complete: {len(nodes)} nodes, {len(links)} links")
-        except Exception as e:
-            print(f"Error processing graph: {e}")
-            import traceback
-            traceback.print_exc()
-            nodes, links = [], []
-
-        return jsonify({
-            'params': merged_params,
-            'events': all_events[:1000],
-            'nodes': nodes,
-            'links': links,
-            'total_events': len(all_events),
-            'timestamp': int(time.time() * 1000)
-        })
-    except Exception as e:
-        print(f"Error in monthly ingestion: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify(get_fallback_data())
 
 def fetch_api_params():
     """Fetch all available parameters from the API"""

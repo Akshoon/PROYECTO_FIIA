@@ -758,18 +758,37 @@ function checkForTableFilters() {
 
             // Initialize Sigma
             sigma = new Sigma(currentGraph, elements.sigmaContainer, {
-                
                 renderLabels: true,
                 labelRenderedSizeThreshold: 8,
                 labelFont: 'Inter, Arial, sans-serif',
                 labelSize: 11,
                 labelWeight: '500',
-                labelColor: { color: '#e7e9ea' },
+                labelColor: { color: '#e7e9ea' },  // Labels blancos por defecto
                 minCameraRatio: 0.1,
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
-                defaultEdgeColor: '#404040'
+                defaultEdgeColor: '#404040',
+                
+                // NUEVO: Control dinámico de colores de labels
+                nodeReducer: (node, data) => {
+                    const res = { ...data };
+                    
+                    // Si el nodo está en hover (highlighted), texto negro
+                    if (data.highlighted) {
+                        res.label = data.label;
+                        res.color = '#FFFFFF';  // Fondo blanco
+                        res.labelColor = '#000000';  // Texto NEGRO
+                        res.labelSize = 14;  // Texto más grande
+                        res.labelWeight = 'bold';  // Texto en negrita
+                    } else {
+                        // Todos los demás: labels blancos
+                        res.labelColor = '#e7e9ea';  // Texto blanco
+                    }
+                    
+                    return res;
+                }
             });
+
 
             setupSigmaInteractions();
 
@@ -934,18 +953,22 @@ function checkForTableFilters() {
     }
 
     // ==================== INTERACTIONS ====================
-
     function setupSigmaInteractions() {
         if (!sigma || !currentGraph) return;
-
+        
         sigma.on('clickNode', ({ node }) => {
             const attrs = currentGraph.getNodeAttributes(node);
             const degree = currentGraph.degree(node);
-            alert(`${attrs.label}\n\nTipo: ${attrs.nodeType}\nConexiones: ${degree}`);
+            alert(`${attrs.label}\n${attrs.nodeType}\nConexiones: ${degree}`);
         });
-
-        sigma.on('enterNode', ({ node }) => highlightNode(node));
-        sigma.on('leaveNode', () => resetHighlight());
+        
+        sigma.on('enterNode', ({ node }) => {
+            highlightNode(node);
+        });
+        
+        sigma.on('leaveNode', () => {
+            resetHighlight();
+        });
     }
 
     function highlightNode(nodeId) {
@@ -953,39 +976,57 @@ function checkForTableFilters() {
         
         const neighbors = new Set(currentGraph.neighbors(nodeId));
         neighbors.add(nodeId);
-
+        
         currentGraph.forEachNode((node, attrs) => {
-            currentGraph.setNodeAttribute(node, 'color', 
-                neighbors.has(node) ? getNodeColor(attrs.nodeType) : '#333'
-            );
+            if (node === nodeId) {
+                // NODO HOVER: Fondo blanco, texto negro (configurado en nodeReducer)
+                currentGraph.setNodeAttribute(node, 'color', '#FFFFFF');  // Blanco
+                currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 1.8);
+                currentGraph.setNodeAttribute(node, 'highlighted', true);
+                
+            } else if (neighbors.has(node)) {
+                // VECINOS: Color original
+                currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
+                currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 1.2);
+                currentGraph.setNodeAttribute(node, 'highlighted', false);
+                
+            } else {
+                // RESTO: Oscuros
+                currentGraph.setNodeAttribute(node, 'color', '#333333');
+                currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 0.7);
+                currentGraph.setNodeAttribute(node, 'highlighted', false);
+            }
         });
-
+        
         currentGraph.forEachEdge((edge, attrs, source, target) => {
             const connected = neighbors.has(source) && neighbors.has(target);
-            currentGraph.setEdgeAttribute(edge, 'color', connected ? '#666' : '#222');
+            currentGraph.setEdgeAttribute(edge, 'color', connected ? '#888888' : '#1a1a1a');
+            currentGraph.setEdgeAttribute(edge, 'size', connected ? 1.5 : 0.3);
         });
-
+        
         sigma.refresh();
     }
 
     function resetHighlight() {
         if (!currentGraph) return;
-
+        
         currentGraph.forEachNode((node, attrs) => {
-            // ✅ NUEVO: Resetear COMPLETAMENTE el estado
             currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
+            currentGraph.setNodeAttribute(node, 'size', 8);
             currentGraph.setNodeAttribute(node, 'hidden', false);
             currentGraph.setNodeAttribute(node, 'highlighted', false);
             currentGraph.setNodeAttribute(node, 'selected', false);
         });
-
-        currentGraph.forEachEdge(edge => {
+        
+        currentGraph.forEachEdge((edge) => {
             currentGraph.setEdgeAttribute(edge, 'color', '#404040');
+            currentGraph.setEdgeAttribute(edge, 'size', 0.5);
             currentGraph.setEdgeAttribute(edge, 'hidden', false);
         });
-
+        
         sigma.refresh();
     }
+
 
 
     function updateStatistics(nodes, links) {
@@ -1030,166 +1071,128 @@ function checkForTableFilters() {
         if (zoomFit) zoomFit.onclick = () => sigma?.getCamera().animatedReset({ duration: 200 });
     }
 
+    // ==================== BÚSQUEDA EN GRAFO (PRODUCCIÓN) ====================
     function setupSearchFunctionality() {
         const input = elements.graphSearchInput;
-        const searchBtn = document.getElementById('graph-search-btn');
-
+        
         if (!input) {
-            console.error('❌ Graph search input not found');
+            console.warn('Search input not found');
             return;
         }
-
-        console.log('🔍 Configurando búsqueda automática...');
-
-        // Variable para el timeout del debounce
+        
         let searchTimeout = null;
-
-        // Función principal de búsqueda
-        const doSearch = () => {
+        
+        const performSearch = () => {
             const term = input.value.toLowerCase().trim();
-
-            // Verificar si el grafo existe
+            
             if (!currentGraph || !sigma) {
-                if (term) {
-                    console.warn('⚠ Grafo no inicializado. Cargue los datos primero.');
-                }
                 return;
             }
-
-            console.log('🔎 Buscando:', term || '(vacío - mostrando todo)');
-
+            
             if (!term) {
-                // Si no hay término de búsqueda, RESETEAR COMPLETAMENTE
-                currentGraph.forEachNode(n => {
-                    currentGraph.setNodeAttribute(n, 'hidden', false);
-                    currentGraph.setNodeAttribute(n, 'highlighted', false);
-                    currentGraph.setNodeAttribute(n, 'selected', false);  // ✅ NUEVO
+                resetSearch();
+                return;
+            }
+            
+            const matches = new Set();
+            
+            currentGraph.forEachNode((node, attrs) => {
+                if ((attrs.label || '').toLowerCase().includes(term)) {
+                    matches.add(node);
+                }
+            });
+            
+            if (matches.size === 0) {
+                resetSearch();
+                return;
+            }
+            
+            // Expandir a vecinos
+            const expanded = new Set(matches);
+            matches.forEach(m => {
+                try {
+                    currentGraph.neighbors(m).forEach(n => expanded.add(n));
+                } catch (e) {}
+            });
+            
+            // Aplicar filtro visual
+            currentGraph.forEachNode(n => {
+                const isMatch = matches.has(n);
+                const isVisible = expanded.has(n);
+                
+                currentGraph.setNodeAttribute(n, 'hidden', !isVisible);
+                
+                if (isMatch) {
+                    currentGraph.setNodeAttribute(n, 'color', '#FFD700');
+                    currentGraph.setNodeAttribute(n, 'size', 12);
+                    currentGraph.setNodeAttribute(n, 'highlighted', true);
+                } else if (isVisible) {
                     const attrs = currentGraph.getNodeAttributes(n);
                     currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
-                });
-
-                currentGraph.forEachEdge(e => {
-                    currentGraph.setEdgeAttribute(e, 'hidden', false);
-                });
-
-                sigma.refresh();  // ✅ IMPORTANTE: Refrescar
-                console.log('✓ Mostrando todos los nodos - estado limpio');
-            } else {
-                // Buscar nodos que coincidan
-                const matches = new Set();
-                let matchCount = 0;
-
-                currentGraph.forEachNode((node, attrs) => {
-                    const label = (attrs.label || '').toLowerCase();
-                    if (label.includes(term)) {
-                        matches.add(node);
-                        matchCount++;
-                    }
-                });
-
-                console.log('📊 Encontradas', matchCount, 'coincidencias directas');
-
-                if (matchCount === 0) {
-                    // Si no hay coincidencias, mostrar todos los nodos sin destacar
-                    currentGraph.forEachNode(n => {
-                        currentGraph.setNodeAttribute(n, 'hidden', false);
-                        currentGraph.setNodeAttribute(n, 'highlighted', false);
-                        const attrs = currentGraph.getNodeAttributes(n);
-                        currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
-                    });
-                    currentGraph.forEachEdge(e => {
-                        currentGraph.setEdgeAttribute(e, 'hidden', false);
-                    });
-                    console.log('⚠ No se encontraron resultados para "' + term + '"');
-                } else {
-                    // Expandir para incluir vecinos
-                    const expanded = new Set(matches);
-                    matches.forEach(m => {
-                        try {
-                            const neighbors = currentGraph.neighbors(m);
-                            neighbors.forEach(n => expanded.add(n));
-                        } catch (err) {
-                            console.warn('⚠ Error obteniendo vecinos:', err);
-                        }
-                    });
-
-                    // Ocultar nodos que no coinciden y destacar los que sí
-                    currentGraph.forEachNode(n => {
-                        const isVisible = expanded.has(n);
-                        const isMatch = matches.has(n);
-
-                        currentGraph.setNodeAttribute(n, 'hidden', !isVisible);
-                        currentGraph.setNodeAttribute(n, 'highlighted', isMatch);
-
-                        if (isMatch) {
-                            // Nodos coincidentes en dorado
-                            currentGraph.setNodeAttribute(n, 'color', '#FFD700');
-                        } else if (isVisible) {
-                            // Vecinos con su color normal
-                            const attrs = currentGraph.getNodeAttributes(n);
-                            currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
-                        }
-                    });
-
-                    // Mostrar solo aristas entre nodos visibles
-                    currentGraph.forEachEdge((e, attrs, source, target) => {
-                        const isVisible = expanded.has(source) && expanded.has(target);
-                        currentGraph.setEdgeAttribute(e, 'hidden', !isVisible);
-                    });
-
-                    console.log('✓ Mostrando', matchCount, 'coincidencias +', (expanded.size - matchCount), 'vecinos =', expanded.size, 'nodos totales');
+                    currentGraph.setNodeAttribute(n, 'size', 8);
+                    currentGraph.setNodeAttribute(n, 'highlighted', false);
+                }
+            });
+            
+            currentGraph.forEachEdge((e, attrs, source, target) => {
+                currentGraph.setEdgeAttribute(e, 'hidden', !expanded.has(source) || !expanded.has(target));
+            });
+            
+            sigma.refresh();
+            
+            // Zoom al primer resultado
+            if (matches.size > 0) {
+                const firstMatch = Array.from(matches)[0];
+                const nodeDisplayData = sigma.getNodeDisplayData(firstMatch);
+                if (nodeDisplayData) {
+                    sigma.getCamera().animate(
+                        { x: nodeDisplayData.x, y: nodeDisplayData.y, ratio: 0.5 },
+                        { duration: 500 }
+                    );
                 }
             }
-
-            // Refrescar la visualización
+        };
+        
+        const resetSearch = () => {
+            if (!currentGraph || !sigma) return;
+            
+            currentGraph.forEachNode(n => {
+                const attrs = currentGraph.getNodeAttributes(n);
+                currentGraph.setNodeAttribute(n, 'hidden', false);
+                currentGraph.setNodeAttribute(n, 'highlighted', false);
+                currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
+                currentGraph.setNodeAttribute(n, 'size', 8);
+            });
+            
+            currentGraph.forEachEdge(e => {
+                currentGraph.setEdgeAttribute(e, 'hidden', false);
+            });
+            
             sigma.refresh();
         };
-
-        // Función de búsqueda con debounce (espera 300ms después de dejar de escribir)
-        const debouncedSearch = () => {
-            if (searchTimeout) {
-                clearTimeout(searchTimeout);
-            }
-            searchTimeout = setTimeout(doSearch, 300);
-        };
-
-        // IMPORTANTE: Limpiar event listeners anteriores
-        // Clonar el input para eliminar todos los listeners previos
-        const newInput = input.cloneNode(true);
-        input.parentNode.replaceChild(newInput, input);
-
-        // Actualizar la referencia en elements
-        elements.graphSearchInput = newInput;
-
-        // Agregar event listener para búsqueda automática (mientras se escribe)
-        newInput.addEventListener('input', debouncedSearch);
-
-        // Agregar event listener para Enter (búsqueda inmediata sin debounce)
-        newInput.addEventListener('keypress', (e) => {
+        
+        // Búsqueda automática
+        input.addEventListener('input', () => {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 500);
+        });
+        
+        // Enter para búsqueda inmediata
+        input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-                doSearch();
+                if (searchTimeout) clearTimeout(searchTimeout);
+                performSearch();
             }
         });
-
-        // Configurar botón de búsqueda (si existe)
-        if (searchBtn) {
-            searchBtn.onclick = () => {
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-                doSearch();
-            };
-            console.log('✓ Botón de búsqueda configurado');
-        }
-
-        console.log('✅ Búsqueda automática configurada correctamente');
-        console.log('   - Escribe en el campo para buscar automáticamente');
-        console.log('   - Presiona Enter para búsqueda inmediata');
-        console.log('   - Debounce: 300ms');
+        
+        // Escape para limpiar
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                input.value = '';
+                resetSearch();
+            }
+        });
     }
 
 })();

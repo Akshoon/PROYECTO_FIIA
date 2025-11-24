@@ -167,22 +167,13 @@
 
             <div class="legend-panel">
                 <div class="legend-title">Leyenda</div>
-                <div class="legend-item"><span class="legend-color" style="background: #34495e;"></span><span>Evento</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #7f8c8d;"></span><span>Obra</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #e74c3c;"></span><span>Compositor</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #95a5a6;"></span><span>Participante</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #bdc3c7;"></span><span>Ubicacion</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #3498db;"></span><span>Instrumento</span></div>
-            </div>
-
-            <div class="stats-panel">
-                <div class="stats-title">Estadisticas</div>
-                <div class="stat-row"><span class="label">Nodos</span><span class="value" id="stat-nodes">0</span></div>
-                <div class="stat-row"><span class="label">Enlaces</span><span class="value" id="stat-edges">0</span></div>
-                <div class="stat-row"><span class="label">Eventos</span><span class="value" id="stat-events">0</span></div>
-                <div class="stat-row"><span class="label">Obras</span><span class="value" id="stat-pieces">0</span></div>
-                <div class="stat-row"><span class="label">Personas</span><span class="value" id="stat-persons">0</span></div>
-                <div class="stat-row"><span class="label">Grado Prom.</span><span class="value" id="stat-degree">0</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #FF6B6B"></span><span>Eventos</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #4ECDC4"></span><span>Obras</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #FFE66D"></span><span>Compositores</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #95E1D3"></span><span>Participantes</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #A8E6CF"></span><span>Ciudades</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #FF8B94"></span><span>Instrumentos</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #8B7FFF"></span><span>Tipos de Evento</span></div>
             </div>
 
             <div class="zoom-controls">
@@ -191,11 +182,16 @@
                 <button id="zoom-fit" class="zoom-btn" title="Ajustar">O</button>
             </div>
 
-            <div class="search-bar">
-                <input type="text" id="graph-search-input" placeholder="Buscar en el grafo... (búsqueda automática)">
-                <button id="graph-search-btn" class="filter-btn filter-btn-primary" title="También puedes presionar Enter">🔍</button>
+            <div class="search-box">
+                <label for="graph-search-input">Buscar en el Grafo</label>
+                <input 
+                    type="text" 
+                    id="graph-search-input" 
+                    placeholder="Escriba para buscar..."
+                    autocomplete="off"
+                />
             </div>
-
+            
             <div class="loading-overlay" id="loading-overlay" style="display: none;">
                 <div class="spinner"></div>
                 <span>Cargando datos...</span>
