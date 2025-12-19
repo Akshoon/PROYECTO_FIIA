@@ -563,6 +563,40 @@
         }
     }
 
+    async function handleClearCacheClick() {
+        if (!confirm('¿Está seguro de que desea limpiar la caché local? Esto eliminará todos los datos almacenados.')) {
+            return;
+        }
+
+        showLoading(true, 'Limpiando caché...');
+
+        try {
+            // Limpiar IndexedDB
+            if (db && db.db) {
+                await db.clearAll();
+                console.log('✓ IndexedDB limpiada');
+            }
+
+            // Limpiar caché del servidor
+            try {
+                await fetch('/api/clear_cache', { method: 'POST' });
+                console.log('✓ Caché del servidor limpiada');
+            } catch (e) {
+                console.warn('No se pudo limpiar caché del servidor:', e);
+            }
+
+            // Resetear estado local
+            graphData = { nodes: [], links: [] };
+            allEvents = [];
+            filterParams = null;
+
+            showMessage('✓ Caché limpiada. Haga clic en "Cargar Todo" para recargar los datos.');
+        } catch (err) {
+            console.error('Error limpiando caché:', err);
+            showMessage('Error al limpiar caché: ' + err.message);
+        }
+    }
+
     function getFilters() {
         return {
             year: (elements.yearSelect && elements.yearSelect.value) || '',
