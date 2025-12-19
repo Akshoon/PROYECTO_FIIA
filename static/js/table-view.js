@@ -34,11 +34,12 @@ let db = null;
 // Configuración de columnas por tipo de datos
 const tableConfigs = {
     events: [
-        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '25%' },
-        { key: 'year', label: 'Año', sortable: true, width: '8%' },
-        { key: 'event_type', label: 'Tipo', sortable: true, width: '15%' },
-        { key: 'location', label: 'Ubicación', sortable: true, width: '22%' },
-        { key: 'participants_count', label: 'Participantes', sortable: true, width: '10%' },
+        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '20%' },
+        { key: 'date', label: 'Fecha', sortable: true, width: '10%' },
+        { key: 'event_type', label: 'Tipo', sortable: true, width: '12%' },
+        { key: 'location', label: 'Ubicación', sortable: true, width: '18%' },
+        { key: 'cycle', label: 'Ciclo', sortable: true, width: '12%' },
+        { key: 'participants_count', label: 'Participantes', sortable: true, width: '8%' },
         { key: 'genders', label: 'Géneros', sortable: false, width: '12%' },
         { key: 'actions', label: 'Acciones', sortable: false, width: '8%' }
     ],
@@ -279,12 +280,29 @@ function processData(data) {
             ...event,
             participants_count: (event.participants || []).length,
             genders: Array.from(genders).join(', ') || 'N/A',
+            date: formatDate(event.date) || 'N/A',
             year: event.year || 'N/A',
             cycle: event.cycle || 'Ninguno',
             event_type: event.event_type || 'N/A',
             location: event.location || 'N/A'
         };
     });
+
+    // Función para formatear fecha
+    function formatDate(dateStr) {
+        if (!dateStr) return null;
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            return date.toLocaleDateString('es-CL', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        } catch (e) {
+            return dateStr;
+        }
+    }
 
     // Extraer participantes únicos
     const participantsMap = new Map();
