@@ -674,8 +674,8 @@ function viewInGraph(index) {
     sessionStorage.setItem('graphFiltersFromTable', JSON.stringify(filters));
     console.log('📊 Filtros guardados en sessionStorage:', filters);
 
-    // Redirigir al grafo
-    window.location.href = '/';
+    // Redirigir al grafo (usando /#app para ir directo al grafo)
+    window.location.href = '/#app';
 }
 
 function editItem(index) {
