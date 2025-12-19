@@ -56,7 +56,7 @@ def monthly_ingestion():
             try:
                 params = {'page': page, 'per_page': per_page}
                 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=60)
+                response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=120)
                 response.raise_for_status()
                 data = response.json()
                 events = data.get('events') or []
@@ -165,7 +165,7 @@ def get_params():
     try:
         full_content = request.args.get('full_content', 'true')
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(f"{PARAMS_URL}?full_content={full_content}", headers=headers, timeout=30)
+        response = requests.get(f"{PARAMS_URL}?full_content={full_content}", headers=headers, timeout=120)
         response.raise_for_status()
         return jsonify(response.json())
     except requests.RequestException as e:
@@ -183,7 +183,7 @@ def get_all_filter_values():
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         
         # Obtener parámetros base
-        params_response = requests.get(f"{PARAMS_URL}?full_content=true", headers=headers, timeout=30)
+        params_response = requests.get(f"{PARAMS_URL}?full_content=true", headers=headers, timeout=120)
         params_response.raise_for_status()
         params_data = params_response.json()
         
@@ -217,7 +217,7 @@ def get_all_filter_values():
             f"{API_BASE_URL}/events", 
             params={'page': 1, 'per_page': 100},
             headers=headers,
-            timeout=30
+            timeout=120
         )
         
         if events_response.status_code == 200:
@@ -378,7 +378,7 @@ def fetch_api_params():
         url = f"{PARAMS_URL}?full_content=true"
         print(f"Fetching params from: {url}")
         
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=120)
         print(f"Params response status: {response.status_code}")
         
         if response.status_code != 200:
@@ -601,7 +601,7 @@ def proxy_events():
         print(f"Proxy: request params: {params}")
         
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=30)
+        response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=120)
         
         print(f"Proxy: response status: {response.status_code}")
         
@@ -660,7 +660,7 @@ def fetch_paginated_events(params, max_events):
         params['page'] = page
         params['per_page'] = per_page
         
-        response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=30)
+        response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=120)
         response.raise_for_status()
         
         events = response.json().get('events', [])
