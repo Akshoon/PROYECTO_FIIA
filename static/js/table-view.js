@@ -11,7 +11,8 @@ let state = {
         events: [],
         participants: [],
         composers: [],
-        cities: []
+        cities: [],
+        locations: []
     },
     filteredData: [],
     filters: {
@@ -33,14 +34,13 @@ let db = null;
 // Configuración de columnas por tipo de datos
 const tableConfigs = {
     events: [
-        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '20%' },
+        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '25%' },
         { key: 'year', label: 'Año', sortable: true, width: '8%' },
-        { key: 'event_type', label: 'Tipo', sortable: true, width: '12%' },
-        { key: 'location', label: 'Ubicación', sortable: true, width: '18%' },
-        { key: 'cycle', label: 'Ciclo', sortable: true, width: '12%' },
+        { key: 'event_type', label: 'Tipo', sortable: true, width: '15%' },
+        { key: 'location', label: 'Ubicación', sortable: true, width: '22%' },
         { key: 'participants_count', label: 'Participantes', sortable: true, width: '10%' },
-        { key: 'genders', label: 'Géneros', sortable: false, width: '10%' },
-        { key: 'actions', label: 'Acciones', sortable: false, width: '10%' }
+        { key: 'genders', label: 'Géneros', sortable: false, width: '12%' },
+        { key: 'actions', label: 'Acciones', sortable: false, width: '8%' }
     ],
     participants: [
         { key: 'name', label: 'Nombre', sortable: true, width: '30%' },
@@ -59,6 +59,12 @@ const tableConfigs = {
         { key: 'name', label: 'Ciudad', sortable: true, width: '40%' },
         { key: 'events_count', label: 'Eventos', sortable: true, width: '30%' },
         { key: 'actions', label: 'Acciones', sortable: false, width: '30%' }
+    ],
+    locations: [
+        { key: 'name', label: 'Lugar/Venue', sortable: true, width: '40%' },
+        { key: 'city', label: 'Ciudad', sortable: true, width: '25%' },
+        { key: 'events_count', label: 'Eventos', sortable: true, width: '20%' },
+        { key: 'actions', label: 'Acciones', sortable: false, width: '15%' }
     ]
 };
 
@@ -345,6 +351,33 @@ function processData(data) {
     });
     state.allData.cities = Array.from(citiesMap.values());
 
+    // Extraer lugares/venues únicos
+    const locationsMap = new Map();
+    state.allData.events.forEach(event => {
+        const fullLocation = event.location;
+        if (fullLocation && fullLocation !== 'N/A') {
+            // Extraer nombre del venue (parte antes de la coma)
+            let venueName = fullLocation;
+            let city = 'N/A';
+
+            if (fullLocation.includes(',')) {
+                const parts = fullLocation.split(',');
+                venueName = parts[0].trim();
+                city = extractCityName(fullLocation) || parts[1].trim();
+            }
+
+            if (!locationsMap.has(venueName)) {
+                locationsMap.set(venueName, {
+                    name: venueName,
+                    city: city,
+                    events_count: 0
+                });
+            }
+            locationsMap.get(venueName).events_count++;
+        }
+    });
+    state.allData.locations = Array.from(locationsMap.values());
+
     // Poblar filtros
     populateFilterLists(data.params || {});
 
@@ -352,7 +385,8 @@ function processData(data) {
         events: state.allData.events.length,
         participants: state.allData.participants.length,
         composers: state.allData.composers.length,
-        cities: state.allData.cities.length
+        cities: state.allData.cities.length,
+        locations: state.allData.locations.length
     });
 
     // Iniciar con todos los datos
@@ -613,6 +647,9 @@ function viewInGraph(index) {
         filters.composer = item.name || '';
     } else if (state.currentTab === 'cities') {
         filters.city = item.name || '';
+    } else if (state.currentTab === 'locations') {
+        filters.location = item.name || '';
+        filters.city = item.city || null;
     }
 
     // Guardar en sessionStorage para que main.js lo lea
