@@ -595,22 +595,32 @@ function viewInGraph(index) {
 
     console.log('Navegando al grafo con item:', item);
 
-    let searchParams = '';
+    // Crear objeto de filtros para sessionStorage
+    const filters = {
+        tab: state.currentTab,
+        timestamp: Date.now()
+    };
 
+    // Agregar datos según el tipo de tab
     if (state.currentTab === 'events') {
-        searchParams = `?search=${encodeURIComponent(item.name || '')}`;
-        if (item.year && item.year !== 'N/A') {
-            searchParams += `&year=${item.year}`;
-        }
+        filters.event = item.name || '';
+        filters.year = (item.year && item.year !== 'N/A') ? item.year : null;
+        filters.location = item.location || null;
     } else if (state.currentTab === 'participants') {
-        searchParams = `?participant=${encodeURIComponent(item.name || '')}`;
+        filters.participant = item.name || '';
+        filters.activity = item.activity || null;
     } else if (state.currentTab === 'composers') {
-        searchParams = `?composer=${encodeURIComponent(item.name || '')}`;
+        filters.composer = item.name || '';
     } else if (state.currentTab === 'cities') {
-        searchParams = `?city=${encodeURIComponent(item.name || '')}`;
+        filters.city = item.name || '';
     }
 
-    window.location.href = `/${searchParams}`;
+    // Guardar en sessionStorage para que main.js lo lea
+    sessionStorage.setItem('graphFiltersFromTable', JSON.stringify(filters));
+    console.log('📊 Filtros guardados en sessionStorage:', filters);
+
+    // Redirigir al grafo
+    window.location.href = '/';
 }
 
 function editItem(index) {
@@ -710,15 +720,15 @@ function renderPagination() {
             <i class="fas fa-chevron-left"></i>
         </button>
         ${pages.map(page => {
-            if (page === '...') {
-                return '<span class="page-ellipsis">...</span>';
-            }
-            return `
+        if (page === '...') {
+            return '<span class="page-ellipsis">...</span>';
+        }
+        return `
                 <button class="page-btn ${page === state.currentPage ? 'active' : ''}" onclick="changePage(${page})">
                     ${page}
                 </button>
             `;
-        }).join('')}
+    }).join('')}
         <button class="page-btn" ${state.currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${state.currentPage + 1})">
             <i class="fas fa-chevron-right"></i>
         </button>
@@ -741,7 +751,7 @@ function updateResultsInfo() {
     const startIndex = (state.currentPage - 1) * state.perPage + 1;
     const endIndex = Math.min(startIndex + state.perPage - 1, state.totalItems);
 
-    document.getElementById('results-info').textContent = 
+    document.getElementById('results-info').textContent =
         `Mostrando ${startIndex}-${endIndex} de ${state.totalItems} resultados`;
 }
 
@@ -774,14 +784,14 @@ function clearAllFilters() {
 
 function exportData() {
     const csv = convertToCSV(state.filteredData);
-    downloadCSV(csv, `${state.currentTab}_export_${new Date().toISOString().slice(0,10)}.csv`);
+    downloadCSV(csv, `${state.currentTab}_export_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
 function convertToCSV(data) {
     if (!data.length) return '';
 
     const headers = Object.keys(data[0]).filter(h => h !== 'raw_data');
-    const rows = data.map(obj => 
+    const rows = data.map(obj =>
         headers.map(header => {
             const value = obj[header];
             if (typeof value === 'object') return JSON.stringify(value);

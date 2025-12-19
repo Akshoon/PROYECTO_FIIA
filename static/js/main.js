@@ -1,6 +1,6 @@
 // main.js - Music Events Graph Visualization with Complete Parameter Loading
 
-(function() {
+(function () {
     'use strict';
 
     // State
@@ -31,56 +31,56 @@
 
     async function init() {
         console.log('Initializing application...');
-        
+
         // Cache DOM elements
         cacheElements();
 
-// ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
+        // ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
 
-// Verificar si hay filtros guardados en sessionStorage desde table-view.js
-function checkForTableFilters() {
-    const graphFilters = sessionStorage.getItem('graphFiltersFromTable');
-    if (graphFilters) {
-        try {
-            const filters = JSON.parse(graphFilters);
-            console.log('📊 Filtros recibidos de table-view:', filters);
+        // Verificar si hay filtros guardados en sessionStorage desde table-view.js
+        function checkForTableFilters() {
+            const graphFilters = sessionStorage.getItem('graphFiltersFromTable');
+            if (graphFilters) {
+                try {
+                    const filters = JSON.parse(graphFilters);
+                    console.log('📊 Filtros recibidos de table-view:', filters);
 
-            // Aplicar filtros según el tipo
-            if (filters.tab === 'events' && filters.event) {
-                document.getElementById('searchInput').value = filters.event;
-                if (filters.year) {
-                    document.getElementById('yearSelect').value = filters.year;
+                    // Aplicar filtros según el tipo
+                    if (filters.tab === 'events' && filters.event) {
+                        document.getElementById('searchInput').value = filters.event;
+                        if (filters.year) {
+                            document.getElementById('yearSelect').value = filters.year;
+                        }
+                        if (filters.location) {
+                            document.getElementById('locationSelect').value = filters.location;
+                        }
+                    } else if (filters.tab === 'participants' && filters.participant) {
+                        document.getElementById('participantSelect').value = filters.participant;
+                        if (filters.activity) {
+                            document.getElementById('activitySelect').value = filters.activity;
+                        }
+                    } else if (filters.tab === 'composers' && filters.composer) {
+                        document.getElementById('composerSelect').value = filters.composer;
+                    } else if (filters.tab === 'cities' && filters.city) {
+                        document.getElementById('locationSelect').value = filters.city;
+                    }
+
+                    // Limpiar sessionStorage
+                    sessionStorage.removeItem('graphFiltersFromTable');
+
+                    // Aplicar filtros automáticamente después de un pequeño delay
+                    setTimeout(() => {
+                        applyFilters();
+                    }, 500);
+
+                    return true;
+                } catch (e) {
+                    console.error('Error parsing table filters:', e);
+                    sessionStorage.removeItem('graphFiltersFromTable');
                 }
-                if (filters.location) {
-                    document.getElementById('locationSelect').value = filters.location;
-                }
-            } else if (filters.tab === 'participants' && filters.participant) {
-                document.getElementById('participantSelect').value = filters.participant;
-                if (filters.activity) {
-                    document.getElementById('activitySelect').value = filters.activity;
-                }
-            } else if (filters.tab === 'composers' && filters.composer) {
-                document.getElementById('composerSelect').value = filters.composer;
-            } else if (filters.tab === 'cities' && filters.city) {
-                document.getElementById('locationSelect').value = filters.city;
             }
-
-            // Limpiar sessionStorage
-            sessionStorage.removeItem('graphFiltersFromTable');
-
-            // Aplicar filtros automáticamente después de un pequeño delay
-            setTimeout(() => {
-                applyFilters();
-            }, 500);
-
-            return true;
-        } catch (e) {
-            console.error('Error parsing table filters:', e);
-            sessionStorage.removeItem('graphFiltersFromTable');
+            return false;
         }
-    }
-    return false;
-}
 
 
 
@@ -145,11 +145,11 @@ function checkForTableFilters() {
                     throw new Error('MusicEventsDB is not available');
                 }
             }
-            
+
             db = window.MusicEventsDB;
             await db.init();
             console.log('Database initialized');
-            
+
             // Try to load cached data
             const cached = await db.getGraphData();
             if (cached.nodes && cached.nodes.length > 0) {
@@ -183,12 +183,12 @@ function checkForTableFilters() {
                     ageText = Math.floor(ageInDays) + ' días';
                 }
                 console.log('Datos del caché tienen ' + ageText + ' de antigüedad');
-                
+
                 const isStale = await db.isDataStale(30);
                 if (isStale) {
                     console.log('⚠ Cached data is stale (>30 days), consider refreshing');
                 }
-                
+
                 // Update cache status display
                 updateCacheStatus(lastUpdate, isStale);
             } else {
@@ -254,7 +254,7 @@ function checkForTableFilters() {
 
             // Try to get from cache first
             const cachedParams = await db.getAllFilterParams();
-            
+
             if (cachedParams && Object.keys(cachedParams).some(k => cachedParams[k].length > 0)) {
                 filterParams = cachedParams;
                 console.log('Loaded filter params from cache');
@@ -274,20 +274,20 @@ function checkForTableFilters() {
 
     async function fetchFilterParamsFromAPI() {
         console.log('Fetching filter parameters from API...');
-        
+
         try {
             const response = await fetch('/api/get_all_filter_values');
-            
+
             if (!response.ok) {
                 throw new Error('HTTP ' + response.status);
             }
 
             const data = await response.json();
-            
+
             if (data.success && data.data) {
                 filterParams = data.data;
                 console.log('Filter parameters loaded:', data.counts);
-                
+
                 // Store in IndexedDB for future use (if available)
                 if (db && db.db) {
                     try {
@@ -296,7 +296,7 @@ function checkForTableFilters() {
                         console.warn('Could not store filter params:', storeErr);
                     }
                 }
-                
+
                 populateFilterDropdowns();
             } else {
                 console.warn('Failed to load filter parameters');
@@ -363,20 +363,25 @@ function checkForTableFilters() {
     function initializeGraph() {
         if (initialized) return;
         initialized = true;
-        
+
         console.log('Initializing graph...');
-        
+
         // Check if we have cached data
         if (graphData.nodes && graphData.nodes.length > 0) {
             console.log('Using cached graph data');
             renderGraph(graphData.nodes, graphData.links);
             showMessage('✓ Datos cargados desde caché local. Use "Cargar Todo" para actualizar.');
+
+            // Verificar si hay filtros desde table-view
             setTimeout(() => {
-                renderGraph(graphData.nodes, graphData.links);
-            }, 2000);
+                checkForTableFilters();
+            }, 500);
         } else {
             // No cached data, show instructions
             showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
+
+            // Aún así verificar filtros, puede que el usuario quiera cargar datos
+            checkForTableFilters();
         }
     }
 
@@ -384,11 +389,11 @@ function checkForTableFilters() {
 
     async function loadInitialData() {
         showLoading(true, 'Cargando datos iniciales...');
-        
+
         try {
             const response = await fetch('/api/monthly_ingestion');
             if (!response.ok) throw new Error('HTTP ' + response.status);
-            
+
             const data = await response.json();
             console.log('Loaded data:', {
                 events: data.events ? data.events.length : 0,
@@ -399,16 +404,16 @@ function checkForTableFilters() {
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
                 allEvents = data.events || [];
-                
+
                 // Store everything in IndexedDB
                 if (db) await db.storeAllData(data);
-                
+
                 // Also update filter params if included
                 if (data.params) {
                     filterParams = data.params;
                     populateFilterDropdowns();
                 }
-                
+
                 renderGraph(graphData.nodes, graphData.links);
             } else if (data.events && data.events.length > 0) {
                 allEvents = data.events;
@@ -443,7 +448,7 @@ function checkForTableFilters() {
     function handleLoadClick() {
         const filters = getFilters();
         console.log('Load clicked with filters:', filters);
-        
+
         if (graphData.nodes && graphData.nodes.length > 0) {
             filterGraphData(filters);
         } else if (allEvents.length > 0) {
@@ -455,13 +460,13 @@ function checkForTableFilters() {
 
     async function handleMonthlyClick() {
         showLoading(true, 'Cargando todos los datos desde la API...');
-        
+
         try {
             const response = await fetch('/api/monthly_ingestion');
             if (!response.ok) throw new Error('HTTP ' + response.status);
-            
+
             const data = await response.json();
-            
+
             if (data.error) {
                 showMessage('Error: ' + data.error);
                 return;
@@ -475,21 +480,21 @@ function checkForTableFilters() {
             });
 
             allEvents = data.events || [];
-            
+
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
-                
+
                 // Store ALL data in IndexedDB (events, nodes, links, params)
                 if (db) {
                     showLoading(true, 'Guardando ' + allEvents.length + ' eventos localmente...');
                     try {
                         await db.storeAllData(data);
                         console.log('✓ All data saved to IndexedDB');
-                        
+
                         // Update cache status
                         const lastUpdate = await db.getLastUpdate();
                         updateCacheStatus(lastUpdate, false);
-                        
+
                         // Get and show storage stats
                         const stats = await db.getStats();
                         if (stats) {
@@ -507,7 +512,7 @@ function checkForTableFilters() {
                         } else {
                             showMessage('✓ Datos guardados localmente. La próxima vez cargarán instantáneamente.');
                         }
-                        
+
                         // Small delay to show the message
                         await new Promise(resolve => setTimeout(resolve, 3000));
                     } catch (err) {
@@ -516,14 +521,14 @@ function checkForTableFilters() {
                         await new Promise(resolve => setTimeout(resolve, 2000));
                     }
                 }
-                
+
                 // Update filter params if included
                 if (data.params) {
                     filterParams = data.params;
                     populateFilterDropdowns();
                     console.log('✓ Filter parameters updated');
                 }
-                
+
                 renderGraph(graphData.nodes, graphData.links);
             } else if (allEvents.length > 0) {
                 // Process all events, no default limit
@@ -531,7 +536,7 @@ function checkForTableFilters() {
             } else {
                 showMessage('No se recibieron datos del servidor.');
             }
-            
+
             console.log('Monthly data loaded:', allEvents.length, 'events');
         } catch (err) {
             console.error('Error loading monthly data:', err);
@@ -552,7 +557,7 @@ function checkForTableFilters() {
         if (elements.activitySearch) elements.activitySearch.value = '';
         if (elements.genderSelect) elements.genderSelect.value = '';
         if (elements.limitSelect) elements.limitSelect.value = '500';
-        
+
         if (graphData.nodes && graphData.nodes.length > 0) {
             renderGraph(graphData.nodes, graphData.links);
         }
@@ -588,13 +593,13 @@ function checkForTableFilters() {
             showMessage('Worker no disponible');
             return;
         }
-        
+
         filters = filters || {};
-        
-        const hasFilters = filters.year || filters.composer_q || filters.participant_q || 
-                          filters.piece_q || filters.name_q || filters.location_q ||
-                          filters.activity_q || filters.gender_q;
-        
+
+        const hasFilters = filters.year || filters.composer_q || filters.participant_q ||
+            filters.piece_q || filters.name_q || filters.location_q ||
+            filters.activity_q || filters.gender_q;
+
         if (!hasFilters) {
             renderGraph(graphData.nodes, graphData.links);
             return;
@@ -606,7 +611,7 @@ function checkForTableFilters() {
 
     async function handleWorkerMessage(e) {
         const { nodes, links, error } = e.data;
-        
+
         if (error) {
             console.error('Worker error:', error);
             showMessage('Error procesando datos: ' + error);
@@ -649,11 +654,11 @@ function checkForTableFilters() {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message-display';
             messageDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: 16px; line-height: 1.8; color: #e0e0e0; padding: 40px;';
-            
+
             const innerDiv = document.createElement('div');
             innerDiv.style.maxWidth = '600px';
             innerDiv.innerHTML = msg;
-            
+
             messageDiv.appendChild(innerDiv);
             elements.sigmaContainer.innerHTML = '';
             elements.sigmaContainer.appendChild(messageDiv);
@@ -662,7 +667,7 @@ function checkForTableFilters() {
 
     function renderGraph(nodes, links) {
         showLoading(false);
-        
+
         if (!nodes || nodes.length === 0) {
             showMessage('No hay nodos para mostrar');
             return;
@@ -676,10 +681,10 @@ function checkForTableFilters() {
         // Validate and prepare nodes
         const nodeMap = new Map();
         const validNodes = [];
-        
+
         for (const node of nodes) {
             if (!node.id || nodeMap.has(node.id)) continue;
-            
+
             nodeMap.set(node.id, true);
             validNodes.push({
                 id: String(node.id),
@@ -697,11 +702,11 @@ function checkForTableFilters() {
         }
 
         // Validate links
-        const validLinks = (links || []).filter(link => 
-            link && 
-            link.source && 
-            link.target && 
-            nodeMap.has(String(link.source)) && 
+        const validLinks = (links || []).filter(link =>
+            link &&
+            link.source &&
+            link.target &&
+            nodeMap.has(String(link.source)) &&
             nodeMap.has(String(link.target)) &&
             String(link.source) !== String(link.target)
         );
@@ -768,11 +773,11 @@ function checkForTableFilters() {
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
                 defaultEdgeColor: '#404040',
-                
+
                 // NUEVO: Control dinámico de colores de labels
                 nodeReducer: (node, data) => {
                     const res = { ...data };
-                    
+
                     // Si el nodo está en hover (highlighted), texto negro
                     if (data.highlighted) {
                         res.label = data.label;
@@ -784,7 +789,7 @@ function checkForTableFilters() {
                         // Todos los demás: labels blancos
                         res.labelColor = '#e7e9ea';  // Texto blanco
                     }
-                    
+
                     return res;
                 }
             });
@@ -792,7 +797,7 @@ function checkForTableFilters() {
 
             setupSigmaInteractions();
 
-                currentGraph.forEachNode((node, attrs) => {
+            currentGraph.forEachNode((node, attrs) => {
                 currentGraph.setNodeAttribute(node, 'highlighted', false);
                 currentGraph.setNodeAttribute(node, 'selected', false);
                 currentGraph.setNodeAttribute(node, 'hidden', false);
@@ -817,31 +822,31 @@ function checkForTableFilters() {
     }
 
     function getNodeColor(type) {
-    // ✨ PALETA MEJORADA: Colores vibrantes y diferenciadores
+        // ✨ PALETA MEJORADA: Colores vibrantes y diferenciadores
         const colors = {
-            'event':          '#FF6B6B',      // Rojo vibrante - Eventos
-            'piece':          '#4ECDC4',      // Turquesa - Piezas musicales
-            'composer':       '#FFE66D',      // Amarillo dorado - Compositores
-            'participant':    '#95E1D3',      // Verde menta - Participantes
-            'city':           '#A8E6CF',      // Verde claro - Ciudades
-            'instrument':     '#FF8B94',      // Rosa coral - Instrumentos
-            'event_type':     '#8B7FFF',      // Púrpura - Tipos de evento
-            'cycle':          '#00D4FF',      // Azul cielo - Ciclos
-            'premiere_type':  '#FFB84D',      // Naranja - Tipo de estreno
-            'location':       '#A8E6CF',      // Verde - Ubicaciones
-            'activity':       '#FF6B9D',      // Magenta - Actividades
-            'gender':         '#6BCB77',      // Verde - Género
-            'person':         '#95E1D3',      // Verde menta - Personas
-            'unknown':        '#CCCCCC'       // Gris - Desconocido
+            'event': '#FF6B6B',      // Rojo vibrante - Eventos
+            'piece': '#4ECDC4',      // Turquesa - Piezas musicales
+            'composer': '#FFE66D',      // Amarillo dorado - Compositores
+            'participant': '#95E1D3',      // Verde menta - Participantes
+            'city': '#A8E6CF',      // Verde claro - Ciudades
+            'instrument': '#FF8B94',      // Rosa coral - Instrumentos
+            'event_type': '#8B7FFF',      // Púrpura - Tipos de evento
+            'cycle': '#00D4FF',      // Azul cielo - Ciclos
+            'premiere_type': '#FFB84D',      // Naranja - Tipo de estreno
+            'location': '#A8E6CF',      // Verde - Ubicaciones
+            'activity': '#FF6B9D',      // Magenta - Actividades
+            'gender': '#6BCB77',      // Verde - Género
+            'person': '#95E1D3',      // Verde menta - Personas
+            'unknown': '#CCCCCC'       // Gris - Desconocido
         };
-        
+
         return colors[type] || colors['unknown'];
-}
+    }
 
 
     function applyLayout(graph) {
         const nodeCount = graph.order;
-        
+
         if (window.forceAtlas2 && typeof window.forceAtlas2.assign === 'function') {
             console.log('Using ForceAtlas2');
             try {
@@ -905,13 +910,13 @@ function checkForTableFilters() {
                         const y1 = graph.getNodeAttribute(n1, 'y');
                         const x2 = graph.getNodeAttribute(n2, 'x');
                         const y2 = graph.getNodeAttribute(n2, 'y');
-                        
+
                         const dx = x2 - x1, dy = y2 - y1;
                         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                         const force = repulsion / (dist * dist);
                         const fx = (dx / dist) * force;
                         const fy = (dy / dist) * force;
-                        
+
                         displacement.get(n1).x -= fx;
                         displacement.get(n1).y -= fy;
                         displacement.get(n2).x += fx;
@@ -925,11 +930,11 @@ function checkForTableFilters() {
                 const y1 = graph.getNodeAttribute(source, 'y');
                 const x2 = graph.getNodeAttribute(target, 'x');
                 const y2 = graph.getNodeAttribute(target, 'y');
-                
+
                 const dx = x2 - x1, dy = y2 - y1;
                 const fx = dx * attraction;
                 const fy = dy * attraction;
-                
+
                 displacement.get(source).x += fx;
                 displacement.get(source).y += fy;
                 displacement.get(target).x -= fx;
@@ -938,15 +943,15 @@ function checkForTableFilters() {
 
             const damping = 1 - (iter / iterations);
             const maxDisp = 10 * damping;
-            
+
             nodes.forEach(node => {
                 const d = displacement.get(node);
                 const dist = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
                 const limited = Math.min(dist, maxDisp);
-                
-                graph.setNodeAttribute(node, 'x', 
+
+                graph.setNodeAttribute(node, 'x',
                     graph.getNodeAttribute(node, 'x') + (d.x / dist) * limited);
-                graph.setNodeAttribute(node, 'y', 
+                graph.setNodeAttribute(node, 'y',
                     graph.getNodeAttribute(node, 'y') + (d.y / dist) * limited);
             });
         }
@@ -955,17 +960,17 @@ function checkForTableFilters() {
     // ==================== INTERACTIONS ====================
     function setupSigmaInteractions() {
         if (!sigma || !currentGraph) return;
-        
+
         sigma.on('clickNode', ({ node }) => {
             const attrs = currentGraph.getNodeAttributes(node);
             const degree = currentGraph.degree(node);
             alert(`${attrs.label}\n${attrs.nodeType}\nConexiones: ${degree}`);
         });
-        
+
         sigma.on('enterNode', ({ node }) => {
             highlightNode(node);
         });
-        
+
         sigma.on('leaveNode', () => {
             resetHighlight();
         });
@@ -973,23 +978,23 @@ function checkForTableFilters() {
 
     function highlightNode(nodeId) {
         if (!currentGraph) return;
-        
+
         const neighbors = new Set(currentGraph.neighbors(nodeId));
         neighbors.add(nodeId);
-        
+
         currentGraph.forEachNode((node, attrs) => {
             if (node === nodeId) {
                 // NODO HOVER: Fondo blanco, texto negro (configurado en nodeReducer)
                 currentGraph.setNodeAttribute(node, 'color', '#FFFFFF');  // Blanco
                 currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 1.8);
                 currentGraph.setNodeAttribute(node, 'highlighted', true);
-                
+
             } else if (neighbors.has(node)) {
                 // VECINOS: Color original
                 currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
                 currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 1.2);
                 currentGraph.setNodeAttribute(node, 'highlighted', false);
-                
+
             } else {
                 // RESTO: Oscuros
                 currentGraph.setNodeAttribute(node, 'color', '#333333');
@@ -997,19 +1002,19 @@ function checkForTableFilters() {
                 currentGraph.setNodeAttribute(node, 'highlighted', false);
             }
         });
-        
+
         currentGraph.forEachEdge((edge, attrs, source, target) => {
             const connected = neighbors.has(source) && neighbors.has(target);
             currentGraph.setEdgeAttribute(edge, 'color', connected ? '#888888' : '#1a1a1a');
             currentGraph.setEdgeAttribute(edge, 'size', connected ? 1.5 : 0.3);
         });
-        
+
         sigma.refresh();
     }
 
     function resetHighlight() {
         if (!currentGraph) return;
-        
+
         currentGraph.forEachNode((node, attrs) => {
             currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
             currentGraph.setNodeAttribute(node, 'size', 8);
@@ -1017,13 +1022,13 @@ function checkForTableFilters() {
             currentGraph.setNodeAttribute(node, 'highlighted', false);
             currentGraph.setNodeAttribute(node, 'selected', false);
         });
-        
+
         currentGraph.forEachEdge((edge) => {
             currentGraph.setEdgeAttribute(edge, 'color', '#404040');
             currentGraph.setEdgeAttribute(edge, 'size', 0.5);
             currentGraph.setEdgeAttribute(edge, 'hidden', false);
         });
-        
+
         sigma.refresh();
     }
 
@@ -1074,54 +1079,54 @@ function checkForTableFilters() {
     // ==================== BÚSQUEDA EN GRAFO (PRODUCCIÓN) ====================
     function setupSearchFunctionality() {
         const input = elements.graphSearchInput;
-        
+
         if (!input) {
             console.warn('Search input not found');
             return;
         }
-        
+
         let searchTimeout = null;
-        
+
         const performSearch = () => {
             const term = input.value.toLowerCase().trim();
-            
+
             if (!currentGraph || !sigma) {
                 return;
             }
-            
+
             if (!term) {
                 resetSearch();
                 return;
             }
-            
+
             const matches = new Set();
-            
+
             currentGraph.forEachNode((node, attrs) => {
                 if ((attrs.label || '').toLowerCase().includes(term)) {
                     matches.add(node);
                 }
             });
-            
+
             if (matches.size === 0) {
                 resetSearch();
                 return;
             }
-            
+
             // Expandir a vecinos
             const expanded = new Set(matches);
             matches.forEach(m => {
                 try {
                     currentGraph.neighbors(m).forEach(n => expanded.add(n));
-                } catch (e) {}
+                } catch (e) { }
             });
-            
+
             // Aplicar filtro visual
             currentGraph.forEachNode(n => {
                 const isMatch = matches.has(n);
                 const isVisible = expanded.has(n);
-                
+
                 currentGraph.setNodeAttribute(n, 'hidden', !isVisible);
-                
+
                 if (isMatch) {
                     currentGraph.setNodeAttribute(n, 'color', '#FFD700');
                     currentGraph.setNodeAttribute(n, 'size', 12);
@@ -1133,13 +1138,13 @@ function checkForTableFilters() {
                     currentGraph.setNodeAttribute(n, 'highlighted', false);
                 }
             });
-            
+
             currentGraph.forEachEdge((e, attrs, source, target) => {
                 currentGraph.setEdgeAttribute(e, 'hidden', !expanded.has(source) || !expanded.has(target));
             });
-            
+
             sigma.refresh();
-            
+
             // Zoom al primer resultado
             if (matches.size > 0) {
                 const firstMatch = Array.from(matches)[0];
@@ -1152,10 +1157,10 @@ function checkForTableFilters() {
                 }
             }
         };
-        
+
         const resetSearch = () => {
             if (!currentGraph || !sigma) return;
-            
+
             currentGraph.forEachNode(n => {
                 const attrs = currentGraph.getNodeAttributes(n);
                 currentGraph.setNodeAttribute(n, 'hidden', false);
@@ -1163,20 +1168,20 @@ function checkForTableFilters() {
                 currentGraph.setNodeAttribute(n, 'color', getNodeColor(attrs.nodeType));
                 currentGraph.setNodeAttribute(n, 'size', 8);
             });
-            
+
             currentGraph.forEachEdge(e => {
                 currentGraph.setEdgeAttribute(e, 'hidden', false);
             });
-            
+
             sigma.refresh();
         };
-        
+
         // Búsqueda automática
         input.addEventListener('input', () => {
             if (searchTimeout) clearTimeout(searchTimeout);
             searchTimeout = setTimeout(performSearch, 500);
         });
-        
+
         // Enter para búsqueda inmediata
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -1185,7 +1190,7 @@ function checkForTableFilters() {
                 performSearch();
             }
         });
-        
+
         // Escape para limpiar
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
