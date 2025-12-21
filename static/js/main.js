@@ -117,44 +117,67 @@
         if (foundNode) {
             console.log('✅ Nodo encontrado:', foundNode.label);
 
-            // Crear subgrafo con el nodo y sus vecinos
+            // Crear subgrafo con el nodo y sus vecinos (2 niveles de profundidad)
             const neighborNodes = new Set();
-            const neighborLinks = [];
+            const neighborLinks = new Set();
+            const addedLinkKeys = new Set();
 
             neighborNodes.add(foundNode.id);
 
-            // Encontrar todos los enlaces conectados al nodo
-            for (const link of graphData.links) {
-                const source = String(link.source);
-                const target = String(link.target);
+            // Función para encontrar vecinos de un conjunto de nodos
+            function findNeighbors(nodeIds) {
+                const newNeighbors = new Set();
+                for (const link of graphData.links) {
+                    const source = String(link.source);
+                    const target = String(link.target);
+                    const linkKey = `${source}-${target}`;
 
-                if (source === foundNode.id || target === foundNode.id) {
-                    neighborLinks.push(link);
-                    neighborNodes.add(source);
-                    neighborNodes.add(target);
+                    if (nodeIds.has(source) || nodeIds.has(target)) {
+                        if (!addedLinkKeys.has(linkKey)) {
+                            neighborLinks.add(link);
+                            addedLinkKeys.add(linkKey);
+                        }
+                        if (nodeIds.has(source)) newNeighbors.add(target);
+                        if (nodeIds.has(target)) newNeighbors.add(source);
+                    }
                 }
+                return newNeighbors;
             }
+
+            // Nivel 1: vecinos directos del nodo principal
+            const level1Neighbors = findNeighbors(new Set([foundNode.id]));
+            level1Neighbors.forEach(n => neighborNodes.add(n));
+
+            // Nivel 2: vecinos de los vecinos
+            const level2Neighbors = findNeighbors(level1Neighbors);
+            level2Neighbors.forEach(n => neighborNodes.add(n));
 
             // Filtrar los nodos que son vecinos
             const filteredNodes = graphData.nodes.filter(node => neighborNodes.has(node.id));
+            const filteredLinks = Array.from(neighborLinks);
 
-            console.log(`📊 Mostrando subgrafo: ${filteredNodes.length} nodos, ${neighborLinks.length} enlaces`);
+            console.log(`📊 Mostrando subgrafo: ${filteredNodes.length} nodos, ${filteredLinks.length} enlaces (2 niveles)`);
 
             // Marcar el nodo principal para resaltarlo
             const nodesWithHighlight = filteredNodes.map(node => {
                 if (node.id === foundNode.id) {
                     return {
                         ...node,
-                        size: 25,
+                        size: 30,
                         highlighted: true,
                         originalColor: node.color
                     };
                 }
-                return { ...node, size: 10 };
+                // Vecinos de nivel 1 (más grandes)
+                if (level1Neighbors.has(node.id)) {
+                    return { ...node, size: 15 };
+                }
+                // Vecinos de nivel 2 (normales)
+                return { ...node, size: 8 };
             });
 
             // Renderizar el subgrafo
-            renderGraph(nodesWithHighlight, neighborLinks);
+            renderGraph(nodesWithHighlight, filteredLinks);
 
             // Después de renderizar, resaltar el nodo principal
             setTimeout(() => {
