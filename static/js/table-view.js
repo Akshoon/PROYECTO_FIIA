@@ -776,24 +776,94 @@ function editItem(index) {
 
     console.log('Ver detalles:', item);
 
-    let details = '<div class="details-modal">';
-    details += '<div class="details-content">';
-    details += `<h3>${item.name || 'Sin nombre'}</h3>`;
-    details += '<table class="details-table">';
+    // Estilos inline para el modal
+    const modalStyles = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+
+    const contentStyles = `
+        background: #fff;
+        border-radius: 12px;
+        max-width: 700px;
+        max-height: 80vh;
+        overflow: auto;
+        padding: 24px;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    `;
+
+    const closeXStyles = `
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        background: #e74c3c;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    `;
+
+    const closeBtnStyles = `
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 20px;
+        display: block;
+        width: 100%;
+    `;
+
+    let details = `<div class="details-modal" style="${modalStyles}" onclick="if(event.target === this) closeDetailsModal()">`;
+    details += `<div class="details-content" style="${contentStyles}">`;
+    details += `<button class="close-x" style="${closeXStyles}" onclick="closeDetailsModal()" title="Cerrar">✕</button>`;
+    details += `<h3 style="margin: 0 0 20px 0; padding-right: 40px; color: #333; font-size: 20px;">${item.name || 'Sin nombre'}</h3>`;
+    details += '<table class="details-table" style="width: 100%; border-collapse: collapse;">';
 
     for (const [key, value] of Object.entries(item)) {
         if (key === 'raw_data' || key === 'id') continue;
-        details += `<tr><th>${key}</th><td>${JSON.stringify(value, null, 2)}</td></tr>`;
+        const displayValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+        details += `<tr style="border-bottom: 1px solid #eee;">
+            <th style="text-align: left; padding: 10px; background: #f8f9fa; color: #555; width: 30%; vertical-align: top;">${key}</th>
+            <td style="padding: 10px; word-break: break-word;"><pre style="margin: 0; white-space: pre-wrap; font-family: inherit;">${displayValue}</pre></td>
+        </tr>`;
     }
 
     details += '</table>';
-    details += '<button onclick="closeDetailsModal()">Cerrar</button>';
+    details += `<button style="${closeBtnStyles}" onclick="closeDetailsModal()">Cerrar</button>`;
     details += '</div></div>';
 
     const modalDiv = document.createElement('div');
     modalDiv.id = 'details-modal-container';
     modalDiv.innerHTML = details;
     document.body.appendChild(modalDiv);
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', function closeOnEscape(e) {
+        if (e.key === 'Escape') {
+            closeDetailsModal();
+            document.removeEventListener('keydown', closeOnEscape);
+        }
+    });
 }
 
 function closeDetailsModal() {
