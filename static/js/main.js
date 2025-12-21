@@ -802,6 +802,12 @@
 
     function showMessage(msg) {
         showLoading(false);
+        // Solo mostrar mensaje si NO hay grafo renderizado
+        if (sigma) {
+            // Si hay grafo, usar notificación en su lugar
+            showNotification(msg);
+            return;
+        }
         if (elements.sigmaContainer) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message-display';
@@ -815,6 +821,43 @@
             elements.sigmaContainer.innerHTML = '';
             elements.sigmaContainer.appendChild(messageDiv);
         }
+    }
+
+    // Mostrar notificación temporal sin destruir el grafo
+    function showNotification(msg, duration = 4000) {
+        // Remover notificación anterior si existe
+        const existingNotif = document.getElementById('graph-notification');
+        if (existingNotif) {
+            existingNotif.remove();
+        }
+
+        const notif = document.createElement('div');
+        notif.id = 'graph-notification';
+        notif.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #ffffff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: opacity 0.3s ease;
+            max-width: 80%;
+            text-align: center;
+        `;
+        notif.innerHTML = msg;
+
+        document.body.appendChild(notif);
+
+        // Auto-remover después del tiempo especificado
+        setTimeout(() => {
+            notif.style.opacity = '0';
+            setTimeout(() => notif.remove(), 300);
+        }, duration);
     }
 
     function renderGraph(nodes, links) {
