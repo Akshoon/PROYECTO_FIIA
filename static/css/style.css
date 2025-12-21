@@ -1,23 +1,10 @@
-/* ============ BASE STYLES ============ */
-/* Paleta de colores UAH */
-:root {
-    --uah-orange: #C54B00;
-    --uah-orange-dark: #A53D00;
-    --uah-orange-light: #E05A00;
-    --uah-blue: #3b82f6;
-    --uah-blue-dark: #2563eb;
-    --uah-white: #ffffff;
-    --uah-gray-light: #f5f5f5;
-    --uah-gray: #6b7280;
-    --uah-gray-dark: #374151;
-    --uah-black: #1a1a1a;
-    --uah-border: #e1e4e8;
-}
+/* ============ STYLE.CSS - Landing Page & Graph View ============ */
+/* Variables and reset loaded from variables.css */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+/* ============ LANDING PAGE THEME ============ */
+.landing-page {
+    background: var(--uah-gray-light);
+    color: var(--uah-black);
 }
 
 @media (max-width: 768px) {
@@ -25,14 +12,6 @@
         display: none;
         /* Ocultar en móvil para evitar superposición */
     }
-}
-
-
-body {
-    font-family: 'ReplicaPro', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--uah-gray-light);
-    color: var(--uah-black);
-    line-height: 1.6;
 }
 
 a {
