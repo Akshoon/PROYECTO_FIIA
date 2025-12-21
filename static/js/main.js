@@ -1005,6 +1005,8 @@
         }
 
         elements.sigmaContainer.innerHTML = '';
+        elements.sigmaContainer.style.background = 'white'; // FORCE WHITE BACKGROUND
+        elements.sigmaContainer.style.backgroundColor = 'white'; // FORCE WHITE BACKGROUND
 
         if (validLinks.length === 0) {
             showMessage('No hay conexiones para mostrar. Intente con diferentes filtros.');
