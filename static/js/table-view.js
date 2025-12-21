@@ -525,19 +525,61 @@ function applyFilters() {
 
     const currentData = state.allData[state.currentTab];
 
+    if (!currentData || currentData.length === 0) {
+        console.log('No hay datos para filtrar');
+        state.filteredData = [];
+        state.currentPage = 1;
+        state.totalItems = 0;
+        renderTable();
+        updateResultsInfo();
+        return;
+    }
+
+    // Mapeo de categorías a tipos de evento
+    const categoryToEventType = {
+        'concert': ['Concierto', 'Recital'],
+        'symphony': ['Sinfonía', 'Sinfónica', 'Orquesta'],
+        'opera': ['Ópera', 'Opera'],
+        'chamber': ['Música de Cámara', 'Cámara', 'Cuarteto', 'Trío']
+    };
+
     state.filteredData = currentData.filter(item => {
-        // Filtro de búsqueda
+        // Filtro de búsqueda (aplica a todas las pestañas)
         if (state.filters.search) {
             const searchLower = state.filters.search.toLowerCase();
-            const searchFields = Object.values(item).join(' ').toLowerCase();
+            const searchFields = Object.values(item).filter(v => typeof v === 'string' || typeof v === 'number').join(' ').toLowerCase();
             if (!searchFields.includes(searchLower)) return false;
         }
 
         // Filtros específicos de eventos
         if (state.currentTab === 'events') {
-            if (state.filters.yearFrom && item.year !== 'N/A' && item.year < state.filters.yearFrom) return false;
-            if (state.filters.yearTo && item.year !== 'N/A' && item.year > state.filters.yearTo) return false;
+            // Filtro de categorías
+            if (state.filters.categories && state.filters.categories.length > 0) {
+                const eventType = (item.event_type || '').toLowerCase();
+                let matchesCategory = false;
 
+                for (const cat of state.filters.categories) {
+                    const types = categoryToEventType[cat] || [];
+                    if (types.some(t => eventType.includes(t.toLowerCase()))) {
+                        matchesCategory = true;
+                        break;
+                    }
+                }
+
+                if (!matchesCategory) return false;
+            }
+
+            // Filtro de año
+            if (state.filters.yearFrom && item.year !== 'N/A') {
+                const year = parseInt(item.year);
+                if (!isNaN(year) && year < state.filters.yearFrom) return false;
+            }
+            if (state.filters.yearTo && item.year !== 'N/A') {
+                const year = parseInt(item.year);
+                if (!isNaN(year) && year > state.filters.yearTo) return false;
+            }
+
+            // Filtro de ciudad
             if (state.filters.city) {
                 const city = extractCityName(item.location);
                 if (!city || !city.toLowerCase().includes(state.filters.city.toLowerCase())) {
@@ -545,6 +587,7 @@ function applyFilters() {
                 }
             }
 
+            // Filtro de compositor
             if (state.filters.composer) {
                 const composers = (item.program || []).flatMap(p => p.composers || []);
                 if (!composers.some(c => c.toLowerCase().includes(state.filters.composer.toLowerCase()))) {
@@ -552,6 +595,7 @@ function applyFilters() {
                 }
             }
 
+            // Filtro de participante
             if (state.filters.participant) {
                 const participants = (item.participants || []).map(p => p.name);
                 if (!participants.some(p => p.toLowerCase().includes(state.filters.participant.toLowerCase()))) {
@@ -560,8 +604,35 @@ function applyFilters() {
             }
         }
 
+        // Filtros para participantes
+        if (state.currentTab === 'participants') {
+            if (state.filters.city) {
+                // No se puede filtrar participantes por ciudad directamente
+            }
+        }
+
+        // Filtros para ciudades
+        if (state.currentTab === 'cities') {
+            if (state.filters.city) {
+                if (!item.name.toLowerCase().includes(state.filters.city.toLowerCase())) {
+                    return false;
+                }
+            }
+        }
+
+        // Filtros para lugares
+        if (state.currentTab === 'locations') {
+            if (state.filters.city) {
+                if (!item.city || !item.city.toLowerCase().includes(state.filters.city.toLowerCase())) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     });
+
+    console.log(`✅ Filtrados: ${state.filteredData.length} de ${currentData.length} registros`);
 
     state.currentPage = 1;
     state.totalItems = state.filteredData.length;
