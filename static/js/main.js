@@ -85,49 +85,95 @@
         return false;
     }
 
-    // Función para buscar y resaltar un nodo en el grafo
+    // Función para buscar y mostrar solo un nodo con sus conexiones
     function searchAndHighlightNode(searchTerm) {
-        if (!currentGraph || !sigma) {
-            console.log('Graph not ready for search');
+        if (!graphData.nodes || graphData.nodes.length === 0) {
+            console.log('No graph data available for search');
             return;
         }
 
         const searchLower = searchTerm.toLowerCase();
         let foundNode = null;
 
-        // Buscar el nodo que coincida
-        currentGraph.forEachNode((nodeId, attributes) => {
-            if (attributes.label && attributes.label.toLowerCase().includes(searchLower)) {
-                foundNode = { id: nodeId, ...attributes };
+        // Buscar el nodo que coincida en los datos originales
+        for (const node of graphData.nodes) {
+            if (node.label && node.label.toLowerCase().includes(searchLower)) {
+                foundNode = node;
+                break;
             }
-        });
+        }
 
         if (foundNode) {
             console.log('✅ Nodo encontrado:', foundNode.label);
 
-            // Centrar la cámara en el nodo encontrado
-            const nodePosition = sigma.getNodeDisplayData(foundNode.id);
-            if (nodePosition) {
-                sigma.getCamera().animate(
-                    { x: nodePosition.x, y: nodePosition.y, ratio: 0.5 },
-                    { duration: 500 }
-                );
+            // Crear subgrafo con el nodo y sus vecinos
+            const neighborNodes = new Set();
+            const neighborLinks = [];
+
+            neighborNodes.add(foundNode.id);
+
+            // Encontrar todos los enlaces conectados al nodo
+            for (const link of graphData.links) {
+                const source = String(link.source);
+                const target = String(link.target);
+
+                if (source === foundNode.id || target === foundNode.id) {
+                    neighborLinks.push(link);
+                    neighborNodes.add(source);
+                    neighborNodes.add(target);
+                }
             }
 
-            // Resaltar el nodo
-            currentGraph.setNodeAttribute(foundNode.id, 'highlighted', true);
-            currentGraph.setNodeAttribute(foundNode.id, 'color', '#FFD700'); // Dorado
-            currentGraph.setNodeAttribute(foundNode.id, 'size', 20);
+            // Filtrar los nodos que son vecinos
+            const filteredNodes = graphData.nodes.filter(node => neighborNodes.has(node.id));
+
+            console.log(`📊 Mostrando subgrafo: ${filteredNodes.length} nodos, ${neighborLinks.length} enlaces`);
+
+            // Marcar el nodo principal para resaltarlo
+            const nodesWithHighlight = filteredNodes.map(node => {
+                if (node.id === foundNode.id) {
+                    return {
+                        ...node,
+                        size: 25,
+                        highlighted: true,
+                        originalColor: node.color
+                    };
+                }
+                return { ...node, size: 10 };
+            });
+
+            // Renderizar el subgrafo
+            renderGraph(nodesWithHighlight, neighborLinks);
+
+            // Después de renderizar, resaltar el nodo principal
+            setTimeout(() => {
+                if (currentGraph && currentGraph.hasNode(foundNode.id)) {
+                    currentGraph.setNodeAttribute(foundNode.id, 'color', '#FFD700');
+                    currentGraph.setNodeAttribute(foundNode.id, 'size', 30);
+
+                    // Centrar la cámara en el nodo
+                    if (sigma) {
+                        const nodePosition = sigma.getNodeDisplayData(foundNode.id);
+                        if (nodePosition) {
+                            sigma.getCamera().animate(
+                                { x: nodePosition.x, y: nodePosition.y, ratio: 0.3 },
+                                { duration: 500 }
+                            );
+                        }
+                        sigma.refresh();
+                    }
+                }
+            }, 1000);
 
             // Actualizar el input de búsqueda del grafo
             if (elements.graphSearchInput) {
                 elements.graphSearchInput.value = searchTerm;
             }
 
-            sigma.refresh();
+            showNotification(`✅ Mostrando "${foundNode.label}" con ${filteredNodes.length - 1} conexiones`, 3000);
         } else {
             console.log('⚠️ Nodo no encontrado para:', searchTerm);
-            showMessage(`No se encontró "${searchTerm}" en el grafo. Intente buscar manualmente.`);
+            showNotification(`⚠️ No se encontró "${searchTerm}" en el grafo.`, 4000);
         }
     }
 
