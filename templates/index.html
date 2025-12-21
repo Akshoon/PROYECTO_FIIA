@@ -139,8 +139,9 @@
     <div class="app-page" id="app-page">
         <header class="app-header">
             <div class="app-logo" onclick="showLanding()">
-                <span>BC</span>
-                <span>Base de Conciertos</span>
+                <img src="{{ url_for('static', filename='img/logoUAH.png') }}" alt="UAH"
+                    style="height: 32px; width: auto;">
+                <span style="margin-left: 10px;">Base de Conciertos</span>
             </div>
             <a href="#" onclick="showLanding(); return false;" class="back-btn">Volver al Inicio</a>
         </header>
