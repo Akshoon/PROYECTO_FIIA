@@ -92,7 +92,18 @@
             return;
         }
 
-        const searchLower = searchTerm.toLowerCase();
+        // Limpiar término de búsqueda (quitar duplicados como "Nombre - Nombre")
+        let cleanSearchTerm = searchTerm;
+        if (searchTerm.includes(' - ')) {
+            const parts = searchTerm.split(' - ');
+            if (parts.length === 2 && parts[0].trim().toLowerCase() === parts[1].trim().toLowerCase()) {
+                cleanSearchTerm = parts[0].trim();
+            }
+        }
+
+        const searchLower = cleanSearchTerm.toLowerCase();
+        console.log(`🔍 Buscando: "${cleanSearchTerm}" (original: "${searchTerm}")`);
+
         let foundNode = null;
 
         // Buscar el nodo que coincida en los datos originales

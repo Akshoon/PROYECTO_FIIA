@@ -369,6 +369,19 @@ function processData(data) {
     });
     state.allData.cities = Array.from(citiesMap.values());
 
+    // Función auxiliar para limpiar nombres duplicados (ej: "Nombre - Nombre" -> "Nombre")
+    function cleanDuplicateName(name) {
+        if (!name) return name;
+        // Verificar si tiene formato "Algo - Algo" donde ambas partes son iguales
+        if (name.includes(' - ')) {
+            const parts = name.split(' - ');
+            if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+                return parts[0].trim();
+            }
+        }
+        return name;
+    }
+
     // Extraer lugares/venues únicos
     const locationsMap = new Map();
     state.allData.events.forEach(event => {
@@ -384,14 +397,21 @@ function processData(data) {
                 city = extractCityName(fullLocation) || parts[1].trim();
             }
 
-            if (!locationsMap.has(venueName)) {
-                locationsMap.set(venueName, {
+            // Limpiar nombres duplicados
+            venueName = cleanDuplicateName(venueName);
+            city = cleanDuplicateName(city);
+
+            // Clave de deduplicación: ignorar espacios extras y mayúsculas
+            const venueKey = venueName.toLowerCase().replace(/\s+/g, ' ').trim();
+
+            if (!locationsMap.has(venueKey)) {
+                locationsMap.set(venueKey, {
                     name: venueName,
                     city: city,
                     events_count: 0
                 });
             }
-            locationsMap.get(venueName).events_count++;
+            locationsMap.get(venueKey).events_count++;
         }
     });
     state.allData.locations = Array.from(locationsMap.values());
