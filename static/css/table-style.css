@@ -22,7 +22,7 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'ReplicaPro', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--uah-gray-light);
     color: var(--uah-black);
     line-height: 1.6;
