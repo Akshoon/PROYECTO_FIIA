@@ -170,20 +170,113 @@ def clear_cache():
 def cache_status():
     """Muestra información sobre el estado del caché"""
     try:
-        # Intentar obtener datos cacheados
-        cache_key = 'view//api/monthly_ingestion'
+        cache_key = 'monthly_ingestion_data'
         cached_data = cache.get(cache_key)
+        
+        events_count = 0
+        cache_timestamp = None
+        if cached_data:
+            events_count = len(cached_data.get('events', []))
+            cache_timestamp = cached_data.get('timestamp')
         
         return jsonify({
             'redis_connected': True,
-            'cache_exists': cached_data is not None,
-            'cache_timeout': app.config['CACHE_DEFAULT_TIMEOUT'],
+            'cache_exists': cached_data is not None and events_count > 0,
+            'events_cached': events_count,
+            'cache_timestamp': cache_timestamp,
+            'cache_timeout_seconds': 31536000,
+            'cache_timeout_days': 365,
             'cache_prefix': app.config['CACHE_KEY_PREFIX']
         })
     except Exception as e:
         return jsonify({
             'redis_connected': False,
             'error': str(e)
+        }), 500
+
+# ==================== ENDPOINT PARA REFRESCAR CACHE ====================
+@app.route('/api/refresh_cache', methods=['POST', 'GET'])
+def refresh_cache():
+    """
+    Fuerza una actualización del caché obteniendo datos frescos de la API.
+    Útil cuando se actualiza la base de datos externa.
+    """
+    try:
+        print("🔄 Refresh cache requested - clearing old cache...")
+        cache_key = 'monthly_ingestion_data'
+        cache.delete(cache_key)
+        
+        # Llamar al endpoint con refresh=true para obtener datos frescos
+        # Hacemos la llamada internamente
+        print("🔄 Fetching fresh data from external API...")
+        
+        # Fetch fresh data
+        api_params = fetch_api_params()
+        all_events = []
+        page = 1
+        per_page = 100
+
+        while True:
+            try:
+                params = {'page': page, 'per_page': per_page}
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                response = requests.get(f"{API_BASE_URL}/events", params=params, headers=headers, timeout=120)
+                response.raise_for_status()
+                data = response.json()
+                events = data.get('events') or []
+                
+                if not events:
+                    break
+                
+                all_events.extend(events)
+                page += 1
+                print(f"Fetched page {page-1}, total events: {len(all_events)}")
+                
+            except requests.RequestException as e:
+                print(f"Error fetching page {page}: {e}")
+                break
+
+        if len(all_events) > 0:
+            # Process and cache
+            extracted_params = extract_params_from_events(all_events)
+            merged_params = merge_params(api_params, extracted_params) if api_params else extracted_params
+            nodes, links = process_events_to_graph(all_events)
+            
+            result = {
+                'params': merged_params,
+                'events': all_events,
+                'nodes': nodes,
+                'links': links,
+                'total_events': len(all_events),
+                'timestamp': int(time.time() * 1000),
+                'cached': False
+            }
+            
+            cache.set(cache_key, result, timeout=31536000)
+            print(f"✅ Cache refreshed successfully: {len(all_events)} events")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Cache actualizado exitosamente con {len(all_events)} eventos',
+                'events_count': len(all_events),
+                'nodes_count': len(nodes),
+                'links_count': len(links),
+                'timestamp': result['timestamp']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No se pudieron obtener eventos de la API externa',
+                'events_count': 0
+            }), 500
+            
+    except Exception as e:
+        print(f"Error refreshing cache: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error actualizando cache: {str(e)}'
         }), 500
 
 @app.route('/api/get_params', methods=['GET'])
