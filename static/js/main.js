@@ -29,60 +29,59 @@
         init();
     }
 
+    // ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
+    // Verificar si hay filtros guardados en sessionStorage desde table-view.js
+    function checkForTableFilters() {
+        const graphFilters = sessionStorage.getItem('graphFiltersFromTable');
+        if (graphFilters) {
+            try {
+                const filters = JSON.parse(graphFilters);
+                console.log('📊 Filtros recibidos de table-view:', filters);
+
+                // Aplicar filtros según el tipo usando los IDs correctos
+                if (filters.tab === 'events' && filters.event) {
+                    if (elements.eventSearch) elements.eventSearch.value = filters.event;
+                    if (filters.year && elements.yearSelect) {
+                        elements.yearSelect.value = filters.year;
+                    }
+                    if (filters.location && elements.locationSearch) {
+                        elements.locationSearch.value = filters.location;
+                    }
+                } else if (filters.tab === 'participants' && filters.participant) {
+                    if (elements.participantSearch) elements.participantSearch.value = filters.participant;
+                    if (filters.activity && elements.activitySearch) {
+                        elements.activitySearch.value = filters.activity;
+                    }
+                } else if (filters.tab === 'composers' && filters.composer) {
+                    if (elements.composerSearch) elements.composerSearch.value = filters.composer;
+                } else if (filters.tab === 'cities' && filters.city) {
+                    if (elements.locationSearch) elements.locationSearch.value = filters.city;
+                } else if (filters.tab === 'locations' && filters.location) {
+                    if (elements.locationSearch) elements.locationSearch.value = filters.location;
+                }
+
+                // Limpiar sessionStorage
+                sessionStorage.removeItem('graphFiltersFromTable');
+
+                // Aplicar filtros automáticamente después de un pequeño delay
+                setTimeout(() => {
+                    handleLoadClick();
+                }, 500);
+
+                return true;
+            } catch (e) {
+                console.error('Error parsing table filters:', e);
+                sessionStorage.removeItem('graphFiltersFromTable');
+            }
+        }
+        return false;
+    }
+
     async function init() {
         console.log('Initializing application...');
 
         // Cache DOM elements
         cacheElements();
-
-        // ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
-
-        // Verificar si hay filtros guardados en sessionStorage desde table-view.js
-        function checkForTableFilters() {
-            const graphFilters = sessionStorage.getItem('graphFiltersFromTable');
-            if (graphFilters) {
-                try {
-                    const filters = JSON.parse(graphFilters);
-                    console.log('📊 Filtros recibidos de table-view:', filters);
-
-                    // Aplicar filtros según el tipo
-                    if (filters.tab === 'events' && filters.event) {
-                        document.getElementById('searchInput').value = filters.event;
-                        if (filters.year) {
-                            document.getElementById('yearSelect').value = filters.year;
-                        }
-                        if (filters.location) {
-                            document.getElementById('locationSelect').value = filters.location;
-                        }
-                    } else if (filters.tab === 'participants' && filters.participant) {
-                        document.getElementById('participantSelect').value = filters.participant;
-                        if (filters.activity) {
-                            document.getElementById('activitySelect').value = filters.activity;
-                        }
-                    } else if (filters.tab === 'composers' && filters.composer) {
-                        document.getElementById('composerSelect').value = filters.composer;
-                    } else if (filters.tab === 'cities' && filters.city) {
-                        document.getElementById('locationSelect').value = filters.city;
-                    }
-
-                    // Limpiar sessionStorage
-                    sessionStorage.removeItem('graphFiltersFromTable');
-
-                    // Aplicar filtros automáticamente después de un pequeño delay
-                    setTimeout(() => {
-                        applyFilters();
-                    }, 500);
-
-                    return true;
-                } catch (e) {
-                    console.error('Error parsing table filters:', e);
-                    sessionStorage.removeItem('graphFiltersFromTable');
-                }
-            }
-            return false;
-        }
-
-
 
         // Initialize worker
         initWorker();
