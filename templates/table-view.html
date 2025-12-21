@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,12 +9,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/table-style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <!-- Header con logo -->
     <header class="main-header">
         <div class="header-content">
             <div class="logo" onclick="window.location.href='/'">
-                <div class="logo-icon"></div>
+                <img src="{{ url_for('static', filename='img/logoUAH.png') }}" alt="UAH" class="logo-icon">
                 <div class="logo-text">
                     <span class="logo-title">Base de Conciertos</span>
                     <span class="logo-subtitle">Vista de Tabla</span>
@@ -82,9 +84,11 @@
                 <div class="filter-section">
                     <h4>Año</h4>
                     <div class="year-range">
-                        <input type="number" class="filter-input small" id="year-from" placeholder="Desde" min="1945" max="2023">
+                        <input type="number" class="filter-input small" id="year-from" placeholder="Desde" min="1945"
+                            max="2023">
                         <span>-</span>
-                        <input type="number" class="filter-input small" id="year-to" placeholder="Hasta" min="1945" max="2023">
+                        <input type="number" class="filter-input small" id="year-to" placeholder="Hasta" min="1945"
+                            max="2023">
                     </div>
                 </div>
 
@@ -92,13 +96,16 @@
                 <div class="filter-section">
                     <h4>Filtros Avanzados</h4>
                     <div class="advanced-filters">
-                        <input type="text" class="filter-input" id="composer-filter" placeholder="Compositor" list="composers-list">
+                        <input type="text" class="filter-input" id="composer-filter" placeholder="Compositor"
+                            list="composers-list">
                         <datalist id="composers-list"></datalist>
 
-                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad" list="cities-list">
+                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad"
+                            list="cities-list">
                         <datalist id="cities-list"></datalist>
 
-                        <input type="text" class="filter-input" id="participant-filter" placeholder="Participante" list="participants-list">
+                        <input type="text" class="filter-input" id="participant-filter" placeholder="Participante"
+                            list="participants-list">
                         <datalist id="participants-list"></datalist>
                     </div>
                 </div>
@@ -167,4 +174,5 @@
 
     <script src="{{ url_for('static', filename='js/table-view.js') }}"></script>
 </body>
+
 </html>
