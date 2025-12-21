@@ -38,35 +38,47 @@
                 const filters = JSON.parse(graphFilters);
                 console.log('📊 Filtros recibidos de table-view:', filters);
 
-                // Aplicar filtros según el tipo usando los IDs correctos
+                // Limpiar sessionStorage primero
+                sessionStorage.removeItem('graphFiltersFromTable');
+
+                // Si no hay datos del grafo, no podemos filtrar
+                if (!graphData.nodes || graphData.nodes.length === 0) {
+                    console.log('No graph data available yet, will load first...');
+                    return true; // Indica que hay filtros pero necesitamos cargar datos primero
+                }
+
+                // Primero asegurarse de que el grafo está renderizado
+                if (!sigma) {
+                    console.log('Rendering graph before applying filters...');
+                    renderGraph(graphData.nodes, graphData.links);
+                }
+
+                // Determinar qué valor buscar según el tipo de filtro
+                let searchValue = '';
                 if (filters.tab === 'events' && filters.event) {
+                    searchValue = filters.event;
                     if (elements.eventSearch) elements.eventSearch.value = filters.event;
-                    if (filters.year && elements.yearSelect) {
-                        elements.yearSelect.value = filters.year;
-                    }
-                    if (filters.location && elements.locationSearch) {
-                        elements.locationSearch.value = filters.location;
-                    }
                 } else if (filters.tab === 'participants' && filters.participant) {
+                    searchValue = filters.participant;
                     if (elements.participantSearch) elements.participantSearch.value = filters.participant;
-                    if (filters.activity && elements.activitySearch) {
-                        elements.activitySearch.value = filters.activity;
-                    }
                 } else if (filters.tab === 'composers' && filters.composer) {
+                    searchValue = filters.composer;
                     if (elements.composerSearch) elements.composerSearch.value = filters.composer;
                 } else if (filters.tab === 'cities' && filters.city) {
+                    searchValue = filters.city;
                     if (elements.locationSearch) elements.locationSearch.value = filters.city;
                 } else if (filters.tab === 'locations' && filters.location) {
+                    searchValue = filters.location;
                     if (elements.locationSearch) elements.locationSearch.value = filters.location;
                 }
 
-                // Limpiar sessionStorage
-                sessionStorage.removeItem('graphFiltersFromTable');
-
-                // Aplicar filtros automáticamente después de un pequeño delay
-                setTimeout(() => {
-                    handleLoadClick();
-                }, 500);
+                // Buscar y resaltar el nodo en el grafo
+                if (searchValue && currentGraph && sigma) {
+                    console.log('🔍 Buscando nodo:', searchValue);
+                    setTimeout(() => {
+                        searchAndHighlightNode(searchValue);
+                    }, 500);
+                }
 
                 return true;
             } catch (e) {
@@ -75,6 +87,52 @@
             }
         }
         return false;
+    }
+
+    // Función para buscar y resaltar un nodo en el grafo
+    function searchAndHighlightNode(searchTerm) {
+        if (!currentGraph || !sigma) {
+            console.log('Graph not ready for search');
+            return;
+        }
+
+        const searchLower = searchTerm.toLowerCase();
+        let foundNode = null;
+
+        // Buscar el nodo que coincida
+        currentGraph.forEachNode((nodeId, attributes) => {
+            if (attributes.label && attributes.label.toLowerCase().includes(searchLower)) {
+                foundNode = { id: nodeId, ...attributes };
+            }
+        });
+
+        if (foundNode) {
+            console.log('✅ Nodo encontrado:', foundNode.label);
+
+            // Centrar la cámara en el nodo encontrado
+            const nodePosition = sigma.getNodeDisplayData(foundNode.id);
+            if (nodePosition) {
+                sigma.getCamera().animate(
+                    { x: nodePosition.x, y: nodePosition.y, ratio: 0.5 },
+                    { duration: 500 }
+                );
+            }
+
+            // Resaltar el nodo
+            currentGraph.setNodeAttribute(foundNode.id, 'highlighted', true);
+            currentGraph.setNodeAttribute(foundNode.id, 'color', '#FFD700'); // Dorado
+            currentGraph.setNodeAttribute(foundNode.id, 'size', 20);
+
+            // Actualizar el input de búsqueda del grafo
+            if (elements.graphSearchInput) {
+                elements.graphSearchInput.value = searchTerm;
+            }
+
+            sigma.refresh();
+        } else {
+            console.log('⚠️ Nodo no encontrado para:', searchTerm);
+            showMessage(`No se encontró "${searchTerm}" en el grafo. Intente buscar manualmente.`);
+        }
     }
 
     async function init() {
@@ -360,14 +418,20 @@
     }
 
     function initializeGraph() {
-        if (initialized) return;
+        console.log('Initializing graph...', { initialized, hasNodes: graphData.nodes?.length, hasEvents: allEvents?.length });
+
+        // Si ya está inicializado pero hay datos, solo renderizar
+        if (initialized && graphData.nodes && graphData.nodes.length > 0) {
+            console.log('Graph already initialized, just checking for table filters...');
+            checkForTableFilters();
+            return;
+        }
+
         initialized = true;
 
-        console.log('Initializing graph...');
-
-        // Check if we have cached data
+        // Check if we have cached graph data (nodes)
         if (graphData.nodes && graphData.nodes.length > 0) {
-            console.log('Using cached graph data');
+            console.log('Using cached graph data:', graphData.nodes.length, 'nodes');
             renderGraph(graphData.nodes, graphData.links);
             showMessage('✓ Datos cargados desde caché local. Use "Cargar Todo" para actualizar.');
 
@@ -375,12 +439,24 @@
             setTimeout(() => {
                 checkForTableFilters();
             }, 500);
+        } else if (allEvents && allEvents.length > 0) {
+            // Tenemos eventos pero no nodos, procesar eventos para crear el grafo
+            console.log('No cached nodes, but have events. Processing events...');
+            processEventsWithWorker(allEvents, {});
+
+            // Verificar filtros después de procesar
+            setTimeout(() => {
+                checkForTableFilters();
+            }, 1000);
         } else {
             // No cached data, show instructions
             showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
 
-            // Aún así verificar filtros, puede que el usuario quiera cargar datos
-            checkForTableFilters();
+            // Verificar si hay filtros desde table-view, si los hay, cargar datos
+            if (checkForTableFilters()) {
+                console.log('Filters from table detected, loading data...');
+                handleMonthlyClick();
+            }
         }
     }
 
