@@ -36,10 +36,28 @@ def test_db():
     """Página de prueba para verificar IndexedDB"""
     return render_template('test-db.html')
 
-# ==================== ENDPOINT CON REDIS CACHE ====================
+# ==================== ENDPOINT CON REDIS CACHE MANUAL ====================
 @app.route('/api/monthly_ingestion', methods=['GET'])
-@cache.cached(timeout=86400, query_string=True)  # <-- CACHEO AUTOMÁTICO
 def monthly_ingestion():
+    """
+    Endpoint principal para obtener todos los eventos.
+    Usa caché manual para evitar cachear respuestas vacías.
+    """
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    cache_key = 'monthly_ingestion_data'
+    
+    # Intentar obtener del caché si no es un refresh forzado
+    if not force_refresh:
+        cached_data = cache.get(cache_key)
+        if cached_data and cached_data.get('events') and len(cached_data.get('events', [])) > 0:
+            print(f"✅ Returning cached data: {len(cached_data.get('events', []))} events")
+            cached_data['cached'] = True
+            return jsonify(cached_data)
+        else:
+            print("⚠️ Cache empty or invalid, fetching fresh data...")
+    else:
+        print("🔄 Force refresh requested, fetching fresh data...")
+    
     print("⚙️ Monthly ingestion endpoint called - PROCESSING (not from cache)")
     try:
         # First, fetch all available parameters
@@ -104,15 +122,24 @@ def monthly_ingestion():
             traceback.print_exc()
             nodes, links = [], []
 
-        return jsonify({
+        result = {
             'params': merged_params,
-            'events': all_events,  # <-- SIN LÍMITE [:1000]
+            'events': all_events,
             'nodes': nodes,
             'links': links,
             'total_events': len(all_events),
             'timestamp': int(time.time() * 1000),
-            'cached': False  # Indicador de que es data fresca
-        })
+            'cached': False
+        }
+        
+        # Solo cachear si hay eventos válidos
+        if len(all_events) > 0:
+            cache.set(cache_key, result, timeout=31536000)  # 1 año
+            print(f"✅ Data cached successfully: {len(all_events)} events")
+        else:
+            print("⚠️ No events fetched, NOT caching empty response")
+        
+        return jsonify(result)
 
     except Exception as e:
         print(f"Error in monthly ingestion: {e}")
