@@ -359,7 +359,7 @@ a {
 .app-page {
     display: none;
     min-height: 100vh;
-    background: white;
+    background: white !important;
     color: var(--uah-black);
 }
 
@@ -483,7 +483,7 @@ a {
     left: 0;
     right: 0;
     bottom: 0;
-    background: white;
+    background: white !important;
 }
 
 #sigma-container {

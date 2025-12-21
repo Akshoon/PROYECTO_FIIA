@@ -901,7 +901,7 @@
         if (elements.sigmaContainer) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message-display';
-            messageDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: 16px; line-height: 1.8; color: #e0e0e0; padding: 40px;';
+            messageDiv.style.cssText = 'display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: 16px; line-height: 1.8; color: #333333; padding: 40px;';
 
             const innerDiv = document.createElement('div');
             innerDiv.style.maxWidth = '600px';
@@ -1053,26 +1053,26 @@
                 labelFont: 'Inter, Arial, sans-serif',
                 labelSize: 11,
                 labelWeight: '500',
-                labelColor: { color: '#e7e9ea' },  // Labels blancos por defecto
+                labelColor: { color: '#333333' },  // Labels oscuros para fondo blanco
                 minCameraRatio: 0.1,
                 maxCameraRatio: 10,
                 defaultNodeColor: '#999',
-                defaultEdgeColor: '#404040',
+                defaultEdgeColor: '#e0e0e0', // Bordes gris claro para no saturar
 
                 // NUEVO: Control dinámico de colores de labels
                 nodeReducer: (node, data) => {
                     const res = { ...data };
 
-                    // Si el nodo está en hover (highlighted), texto negro
+                    // Si el nodo está en hover (highlighted), texto destacado
                     if (data.highlighted) {
                         res.label = data.label;
-                        res.color = '#FFFFFF';  // Fondo blanco
+                        res.color = '#C54B00';  // Naranja UAH para nodo destacado
                         res.labelColor = '#000000';  // Texto NEGRO
                         res.labelSize = 14;  // Texto más grande
                         res.labelWeight = 'bold';  // Texto en negrita
                     } else {
-                        // Todos los demás: labels blancos
-                        res.labelColor = '#e7e9ea';  // Texto blanco
+                        // Todos los demás: labels oscuros
+                        res.labelColor = '#333333';  // Texto oscuro
                     }
 
                     return res;
