@@ -313,12 +313,18 @@ a {
 /* Data Types Section */
 .data-types {
     padding: 60px 2rem;
-    background: #161b22;
+    background: var(--uah-white);
+    border-top: 1px solid var(--uah-border);
 }
 
 .data-types-content {
     max-width: 1000px;
     margin: 0 auto;
+}
+
+.data-types h2,
+.section-title h2 {
+    color: var(--uah-black);
 }
 
 .type-list {
@@ -334,9 +340,11 @@ a {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: #1f2937;
+    background: var(--uah-gray-light);
+    border: 1px solid var(--uah-border);
     border-radius: 20px;
     font-size: 0.9rem;
+    color: var(--uah-black);
 }
 
 .type-dot {
@@ -349,17 +357,18 @@ a {
 .footer {
     padding: 40px 2rem;
     text-align: center;
-    border-top: 1px solid #2f3336;
+    border-top: 1px solid var(--uah-border);
+    background: var(--uah-white);
     margin-top: auto;
 }
 
 .footer p {
-    color: #71767b;
+    color: var(--uah-gray);
     font-size: 0.9rem;
 }
 
 .footer a {
-    color: #3b82f6;
+    color: var(--uah-orange);
     text-decoration: none;
 }
 
