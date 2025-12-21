@@ -736,6 +736,16 @@
             }
 
             console.log('Monthly data loaded:', allEvents.length, 'events');
+
+            // Después de cargar y renderizar, verificar si hay filtros de la tabla
+            setTimeout(() => {
+                const hasTableFilters = sessionStorage.getItem('graphFiltersFromTable');
+                if (hasTableFilters && graphData.nodes && graphData.nodes.length > 0) {
+                    console.log('📊 Applying pending table filters after data load...');
+                    checkForTableFilters();
+                }
+            }, 1500);
+
         } catch (err) {
             console.error('Error loading monthly data:', err);
             showMessage('Error cargando datos. Verifique la conexión.');
