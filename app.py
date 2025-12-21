@@ -13,7 +13,7 @@ app.config['CACHE_TYPE'] = 'redis'
 app.config['CACHE_REDIS_HOST'] = 'localhost'
 app.config['CACHE_REDIS_PORT'] = 6379
 app.config['CACHE_REDIS_DB'] = 0
-app.config['CACHE_DEFAULT_TIMEOUT'] = 86400  # 24 horas en segundos
+app.config['CACHE_DEFAULT_TIMEOUT'] = 31536000  # 1 año en segundos (365 días)
 app.config['CACHE_KEY_PREFIX'] = 'musicevents_'
 
 cache = Cache(app)
