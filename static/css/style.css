@@ -410,6 +410,7 @@ a {
     gap: 10px;
     font-weight: 600;
     cursor: pointer;
+    color: #e7e9ea;
 }
 
 .back-btn {
@@ -423,7 +424,7 @@ a {
 }
 
 .back-btn:hover {
-    color: #3b82f6;
+    color: var(--uah-orange);
 }
 
 /* Filters Bar */
@@ -456,7 +457,7 @@ a {
 .filter-input:focus,
 .filter-select:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--uah-orange);
 }
 
 .filter-input::placeholder {
@@ -474,12 +475,12 @@ a {
 }
 
 .filter-btn-primary {
-    background: #3b82f6;
+    background: var(--uah-orange);
     color: white;
 }
 
 .filter-btn-primary:hover {
-    background: #2563eb;
+    background: var(--uah-orange-dark);
 }
 
 .filter-btn-secondary {
