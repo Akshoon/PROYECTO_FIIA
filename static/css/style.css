@@ -359,8 +359,8 @@ a {
 .app-page {
     display: none;
     min-height: 100vh;
-    background: #0f1419;
-    color: #e7e9ea;
+    background: white;
+    color: var(--uah-black);
 }
 
 .app-page.active {
@@ -483,7 +483,7 @@ a {
     left: 0;
     right: 0;
     bottom: 0;
-    background: #0f1419;
+    background: white;
 }
 
 #sigma-container {
@@ -493,16 +493,16 @@ a {
 
 /* Panels */
 .panel {
-    background: rgba(22, 27, 34, 0.95);
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid var(--uah-border);
     border-radius: 8px;
     padding: 15px;
-    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .panel-title {
     font-size: 0.8rem;
-    color: #71767b;
+    color: var(--uah-gray);
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 12px;
@@ -514,16 +514,17 @@ a {
     top: 130px;
     /* Movida debajo de los filtros */
     left: 20px;
-    background: rgba(22, 27, 34, 0.95);
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid var(--uah-border);
     border-radius: 8px;
     padding: 15px;
     min-width: 150px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .legend-title {
     font-size: 0.8rem;
-    color: #71767b;
+    color: var(--uah-gray);
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 12px;
@@ -549,16 +550,17 @@ a {
     position: absolute;
     top: 20px;
     right: 20px;
-    background: rgba(22, 27, 34, 0.95);
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid var(--uah-border);
     border-radius: 8px;
     padding: 15px;
     min-width: 160px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .stats-title {
     font-size: 0.8rem;
-    color: #71767b;
+    color: var(--uah-gray);
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 12px;
@@ -572,12 +574,12 @@ a {
 }
 
 .stat-row .label {
-    color: #9ca3af;
+    color: var(--uah-gray);
 }
 
 .stat-row .value {
     font-weight: 600;
-    color: #3b82f6;
+    color: var(--uah-blue);
 }
 
 /* Zoom Controls */
@@ -593,22 +595,27 @@ a {
 .zoom-btn {
     width: 36px;
     height: 36px;
-    background: rgba(22, 27, 34, 0.95);
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid var(--uah-border);
     border-radius: 6px;
-    color: #e7e9ea;
+    color: var(--uah-gray-dark);
     font-size: 18px;
+    font-weight: bold;
     cursor: pointer;
-    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .zoom-btn:hover {
-    background: #374151;
-    border-color: #3b82f6;
+    background: var(--uah-gray-light);
+    border-color: var(--uah-blue);
+    color: var(--uah-blue);
 }
+
+
 
 /* Search Bar */
 .search-bar {
@@ -620,19 +627,20 @@ a {
 }
 
 .search-bar input {
-    background: rgba(22, 27, 34, 0.95);
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid var(--uah-border);
     border-radius: 6px;
     padding: 10px 14px;
-    color: #e7e9ea;
+    color: var(--uah-black);
     width: 250px;
     font-size: 0.9rem;
     transition: border-color 0.2s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .search-bar input:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--uah-blue);
 }
 
 .search-bar input::placeholder {
