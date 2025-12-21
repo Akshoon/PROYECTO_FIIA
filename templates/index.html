@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +9,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/graphology-layout@0.6.1/dist/graphology-layout.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/build/sigma.min.js"></script>
 </head>
+
 <body>
     <!-- LANDING PAGE -->
     <div class="landing-page" id="landing-page">
@@ -24,7 +27,8 @@
                     <a href="#features">Caracteristicas</a>
                     <a href="#data">Datos</a>
                     <a href="http://basedeconciertos.uahurtado.cl:5099/api" target="_blank">API</a>
-                    <a href="#" onclick="showApp(); return false;" class="btn btn-primary" style="padding: 10px 20px;">Explorar Grafo</a>
+                    <a href="#" onclick="showApp(); return false;" class="btn btn-primary"
+                        style="padding: 10px 20px;">Explorar Grafo</a>
                 </nav>
             </div>
         </header>
@@ -32,7 +36,8 @@
         <section class="hero">
             <div class="hero-content">
                 <h1>Explora la Historia Musical de Chile</h1>
-                <p>Visualiza y analiza mas de 50 anos de eventos musicales, compositores, interpretes y obras a traves de grafos interactivos.</p>
+                <p>Visualiza y analiza mas de 50 anos de eventos musicales, compositores, interpretes y obras a traves
+                    de grafos interactivos.</p>
                 <div class="hero-buttons">
                     <a href="#" onclick="showApp(); return false;" class="btn btn-primary">Explorar Grafo</a>
                     <a href="#features" class="btn btn-secondary">Mas Informacion</a>
@@ -109,18 +114,23 @@
                 <div class="type-list">
                     <div class="type-badge"><span class="type-dot" style="background: #34495e;"></span>Eventos</div>
                     <div class="type-badge"><span class="type-dot" style="background: #7f8c8d;"></span>Obras</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #e74c3c;"></span>Compositores</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #95a5a6;"></span>Participantes</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #e74c3c;"></span>Compositores
+                    </div>
+                    <div class="type-badge"><span class="type-dot" style="background: #95a5a6;"></span>Participantes
+                    </div>
                     <div class="type-badge"><span class="type-dot" style="background: #bdc3c7;"></span>Ubicaciones</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #3498db;"></span>Instrumentos</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #9b59b6;"></span>Tipos de Evento</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #3498db;"></span>Instrumentos
+                    </div>
+                    <div class="type-badge"><span class="type-dot" style="background: #9b59b6;"></span>Tipos de Evento
+                    </div>
                     <div class="type-badge"><span class="type-dot" style="background: #1abc9c;"></span>Ciclos</div>
                 </div>
             </div>
         </section>
 
         <footer class="footer">
-            <p>Proyecto de la <a href="https://www.uahurtado.cl" target="_blank">Universidad Alberto Hurtado</a> - Datos de <a href="http://basedeconciertos.uahurtado.cl:5099" target="_blank">Base de Conciertos</a></p>
+            <p>Proyecto de la <a href="https://www.uahurtado.cl" target="_blank">Universidad Alberto Hurtado</a> - Datos
+                de <a href="http://basedeconciertos.uahurtado.cl:5099" target="_blank">Base de Conciertos</a></p>
         </footer>
     </div>
 
@@ -159,7 +169,8 @@
             <button id="load-btn" class="filter-btn filter-btn-primary">Filtrar</button>
             <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
             <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
-            <button id="clear-cache-btn" class="filter-btn filter-btn-secondary" style="background: #c0392b;" title="Eliminar datos locales">Limpiar Cache</button>
+            <button id="clear-cache-btn" class="filter-btn filter-btn-secondary" style="background: #c0392b;"
+                title="Eliminar datos locales">Limpiar Cache</button>
         </div>
 
         <div class="graph-container">
@@ -167,13 +178,20 @@
 
             <div class="legend-panel">
                 <div class="legend-title">Leyenda</div>
-                <div class="legend-item"><span class="legend-color" style="background: #FF6B6B"></span><span>Eventos</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #4ECDC4"></span><span>Obras</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #FFE66D"></span><span>Compositores</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #95E1D3"></span><span>Participantes</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #A8E6CF"></span><span>Ciudades</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #FF8B94"></span><span>Instrumentos</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #8B7FFF"></span><span>Tipos de Evento</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #FF6B6B"></span><span>Eventos</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #4ECDC4"></span><span>Obras</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #FFE66D"></span><span>Compositores</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #95E1D3"></span><span>Participantes</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #A8E6CF"></span><span>Ciudades</span></div>
+                <div class="legend-item"><span class="legend-color"
+                        style="background: #FF8B94"></span><span>Instrumentos</span></div>
+                <div class="legend-item"><span class="legend-color" style="background: #8B7FFF"></span><span>Tipos de
+                        Evento</span></div>
             </div>
 
             <div class="zoom-controls">
@@ -184,14 +202,9 @@
 
             <div class="search-box">
                 <label for="graph-search-input">Buscar en el Grafo</label>
-                <input 
-                    type="text" 
-                    id="graph-search-input" 
-                    placeholder="Escriba para buscar..."
-                    autocomplete="off"
-                />
+                <input type="text" id="graph-search-input" placeholder="Escriba para buscar..." autocomplete="off" />
             </div>
-            
+
             <div class="loading-overlay" id="loading-overlay" style="display: none;">
                 <div class="spinner"></div>
                 <span>Cargando datos...</span>
@@ -199,24 +212,40 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
     <script>
         function showApp() {
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('app-page').classList.add('active');
-            if (typeof initializeGraph === 'function') {
-                initializeGraph();
-            }
+            // Esperar un poco para asegurar que main.js esté completamente inicializado
+            setTimeout(function () {
+                if (typeof initializeGraph === 'function') {
+                    console.log('Calling initializeGraph from showApp...');
+                    initializeGraph();
+                } else {
+                    console.error('initializeGraph not available yet');
+                }
+            }, 100);
         }
         function showLanding() {
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('app-page').classList.remove('active');
         }
+
+        // Verificar hash después de que todo esté cargado
         if (window.location.hash === '#app') {
-            showApp();
+            // Esperar a que main.js esté listo
+            if (document.readyState === 'complete') {
+                showApp();
+            } else {
+                window.addEventListener('load', function () {
+                    showApp();
+                });
+            }
         }
     </script>
-
-    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
+
 </html>
