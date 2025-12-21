@@ -23,11 +23,7 @@
 
     window.initializeGraph = initializeGraph;
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    // La inicialización se maneja con initPromise (ver más abajo)
 
     // ==================== ESCUCHAR FILTROS DESDE TABLE VIEW ====================
     // Verificar si hay filtros guardados en sessionStorage desde table-view.js
@@ -135,6 +131,10 @@
         }
     }
 
+    // Variable para indicar si la app está lista
+    let appReady = false;
+    let initPromise = null;
+
     async function init() {
         console.log('Initializing application...');
 
@@ -144,7 +144,7 @@
         // Initialize worker
         initWorker();
 
-        // Initialize database
+        // Initialize database and load cached data
         await initDB();
 
         // Setup UI
@@ -156,8 +156,37 @@
         // Load filter parameters
         await loadFilterParameters();
 
-        console.log('Application initialized');
+        // Marcar que la app está lista
+        appReady = true;
+        console.log('Application initialized', {
+            hasNodes: graphData.nodes?.length || 0,
+            hasEvents: allEvents?.length || 0
+        });
+
+        // Si hay filtros pendientes de la tabla, procesarlos ahora
+        const pendingFilters = sessionStorage.getItem('graphFiltersFromTable');
+        if (pendingFilters && graphData.nodes && graphData.nodes.length > 0) {
+            console.log('📊 Processing pending table filters...');
+            // Renderizar el grafo primero
+            renderGraph(graphData.nodes, graphData.links);
+            // Luego aplicar los filtros
+            setTimeout(() => {
+                checkForTableFilters();
+            }, 500);
+        }
     }
+
+    // Crear promesa de inicialización
+    initPromise = new Promise((resolve) => {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', async () => {
+                await init();
+                resolve();
+            });
+        } else {
+            init().then(resolve);
+        }
+    });
 
     function cacheElements() {
         elements = {
@@ -417,13 +446,26 @@
         inputElement.setAttribute('list', id);
     }
 
-    function initializeGraph() {
-        console.log('Initializing graph...', { initialized, hasNodes: graphData.nodes?.length, hasEvents: allEvents?.length });
+    async function initializeGraph() {
+        console.log('Initializing graph... waiting for app to be ready');
+
+        // Esperar a que la app esté lista (datos cargados de IndexedDB)
+        if (initPromise) {
+            await initPromise;
+        }
+
+        console.log('App ready, initializing graph...', {
+            initialized,
+            hasNodes: graphData.nodes?.length || 0,
+            hasEvents: allEvents?.length || 0,
+            appReady
+        });
 
         // Si ya está inicializado pero hay datos, solo renderizar
         if (initialized && graphData.nodes && graphData.nodes.length > 0) {
-            console.log('Graph already initialized, just checking for table filters...');
-            checkForTableFilters();
+            console.log('Graph already initialized, rendering and checking for table filters...');
+            renderGraph(graphData.nodes, graphData.links);
+            setTimeout(() => checkForTableFilters(), 300);
             return;
         }
 
@@ -449,13 +491,14 @@
                 checkForTableFilters();
             }, 1000);
         } else {
-            // No cached data, show instructions
-            showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
-
-            // Verificar si hay filtros desde table-view, si los hay, cargar datos
-            if (checkForTableFilters()) {
+            // No cached data, check if table filters want to load data
+            const hasTableFilters = sessionStorage.getItem('graphFiltersFromTable');
+            if (hasTableFilters) {
                 console.log('Filters from table detected, loading data...');
+                showMessage('📥 Cargando datos para mostrar el elemento seleccionado...');
                 handleMonthlyClick();
+            } else {
+                showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
             }
         }
     }
