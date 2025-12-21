@@ -373,8 +373,8 @@ a {
 
 /* App Header */
 .app-header {
-    background: #161b22;
-    border-bottom: 1px solid #2f3336;
+    background: var(--uah-orange);
+    border-bottom: 1px solid var(--uah-orange-dark);
     padding: 12px 20px;
     display: flex;
     justify-content: space-between;
@@ -391,11 +391,11 @@ a {
     gap: 10px;
     font-weight: 600;
     cursor: pointer;
-    color: #e7e9ea;
+    color: white;
 }
 
 .back-btn {
-    color: #9ca3af;
+    color: rgba(255, 255, 255, 0.9);
     text-decoration: none;
     font-size: 0.9rem;
     display: flex;
@@ -405,13 +405,14 @@ a {
 }
 
 .back-btn:hover {
-    color: var(--uah-orange);
+    color: white;
+    text-decoration: underline;
 }
 
 /* Filters Bar */
 .filters-bar {
-    background: #161b22;
-    border-bottom: 1px solid #2f3336;
+    background: var(--uah-orange);
+    border-bottom: 1px solid var(--uah-orange-dark);
     padding: 15px 20px;
     position: fixed;
     top: 52px;
@@ -421,15 +422,16 @@ a {
     gap: 12px;
     flex-wrap: wrap;
     align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .filter-input,
 .filter-select {
-    background: #0f1419;
-    border: 1px solid #2f3336;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 6px;
     padding: 8px 12px;
-    color: #e7e9ea;
+    color: var(--uah-black);
     font-size: 0.85rem;
     min-width: 120px;
     transition: border-color 0.2s;
@@ -438,11 +440,12 @@ a {
 .filter-input:focus,
 .filter-select:focus {
     outline: none;
-    border-color: var(--uah-orange);
+    border-color: var(--uah-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 .filter-input::placeholder {
-    color: #71767b;
+    color: #6b7280;
 }
 
 .filter-btn {
