@@ -1005,8 +1005,8 @@
         }
 
         elements.sigmaContainer.innerHTML = '';
-        elements.sigmaContainer.style.background = 'white'; // FORCE WHITE BACKGROUND
-        elements.sigmaContainer.style.backgroundColor = 'white'; // FORCE WHITE BACKGROUND
+        elements.sigmaContainer.style.background = '#ffffff'; // FORCE WHITE BACKGROUND
+        elements.sigmaContainer.style.backgroundColor = '#ffffff'; // FORCE WHITE BACKGROUND
 
         if (validLinks.length === 0) {
             showMessage('No hay conexiones para mostrar. Intente con diferentes filtros.');
@@ -1271,8 +1271,8 @@
 
         currentGraph.forEachNode((node, attrs) => {
             if (node === nodeId) {
-                // NODO HOVER: Fondo blanco, texto negro (configurado en nodeReducer)
-                currentGraph.setNodeAttribute(node, 'color', '#FFFFFF');  // Blanco
+                // NODO HOVER: Fondo Naranja UAH, texto negro
+                currentGraph.setNodeAttribute(node, 'color', '#C54B00');  // Naranja UAH
                 currentGraph.setNodeAttribute(node, 'size', (attrs.size || 8) * 1.8);
                 currentGraph.setNodeAttribute(node, 'highlighted', true);
 
