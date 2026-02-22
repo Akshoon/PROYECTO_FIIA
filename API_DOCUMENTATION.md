@@ -1,7 +1,7 @@
 # API Documentation for Music Events Database
 
 ## Base URL
-`http://basedeconciertos.uahurtado.cl:5099/api`
+`http://basedeconciertos.uahurtado.cl/api`
 
 ## Endpoint: /events
 
@@ -60,7 +60,7 @@ An object with pagination metadata:
 
 ### Example Request
 ```
-GET http://basedeconciertos.uahurtado.cl:5099/api/events?year=1985&page=1&per_page=50
+GET http://basedeconciertos.uahurtado.cl/api/events?year=1985&page=1&per_page=50
 ```
 
 ### Example Response

@@ -19,8 +19,8 @@ app.config['CACHE_KEY_PREFIX'] = 'musicevents_'
 cache = Cache(app)
 # ================================================================
 
-API_BASE_URL = "http://basedeconciertos.uahurtado.cl:5099/api"
-PARAMS_URL = "http://basedeconciertos.uahurtado.cl:5099/api/status/get_params"
+API_BASE_URL = "http://basedeconciertos.uahurtado.cl/api"
+PARAMS_URL = "http://basedeconciertos.uahurtado.cl/api/status/get_params"
 
 @app.route('/')
 def index():

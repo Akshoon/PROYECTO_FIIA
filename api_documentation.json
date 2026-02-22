@@ -1,5 +1,5 @@
 {
-  "base_url": "http://basedeconciertos.uahurtado.cl:5099/api",
+  "base_url": "http://basedeconciertos.uahurtado.cl/api",
   "endpoint": "/events",
   "query_parameters": {
     "text_filters": {
@@ -34,7 +34,7 @@
     "events": "Array of event objects containing: id, name, year, location, event_type, cycle, participants (array with name and activity), program (array with piece_name, composers, premiere_type)",
     "pagination": "Object with pagination metadata: total_events, total_pages, current_page, per_page, has_next, has_prev"
   },
-  "example_request": "GET http://basedeconciertos.uahurtado.cl:5099/api/events?year=1985&page=1&per_page=50",
+  "example_request": "GET http://basedeconciertos.uahurtado.cl/api/events?year=1985&page=1&per_page=50",
   "example_response": {
     "events": [
       {
@@ -53,7 +53,9 @@
         "program": [
           {
             "piece_name": "Concierto para Piano No. 1",
-            "composers": ["Bach"],
+            "composers": [
+              "Bach"
+            ],
             "premiere_type": "Estreno Mundial"
           }
         ]
