@@ -813,6 +813,7 @@ def process_events_to_graph(events):
                 'id': event_id,
                 'label': event.get('name') or 'Evento',
                 'type': 'event',
+                'year': event.get('year') or (event.get('date') and event.get('date').split('-')[-1] if '-' in str(event.get('date')) else None), # ✅ MEJORADO: Extraer año de fecha si falta
                 'x': 0,
                 'y': 0,
                 'size': 10

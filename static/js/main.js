@@ -7,6 +7,7 @@
     let sigma = null;
     let currentGraph = null;
     let allEvents = [];
+    let allEventsMap = new Map(); // ✅ NUEVO: Para acceso rápido por ID
     let graphData = { nodes: [], links: [] };
     let filterParams = null; // Store all filter parameters
     let worker = null;
@@ -204,10 +205,10 @@
                 elements.graphSearchInput.value = searchTerm;
             }
 
-            showNotification(`✅ Mostrando "${foundNode.label}" con ${filteredNodes.length - 1} conexiones`, 3000);
+            showNotification(`Mostrando "${foundNode.label}" con ${filteredNodes.length - 1} conexiones`, 3000);
         } else {
-            console.log('⚠️ Nodo no encontrado para:', searchTerm);
-            showNotification(`⚠️ No se encontró "${searchTerm}" en el grafo.`, 4000);
+            console.log('Nodo no encontrado para:', searchTerm);
+            showNotification(`No se encontró "${searchTerm}" en el grafo.`, 4000);
         }
     }
 
@@ -272,20 +273,22 @@
         elements = {
             sigmaContainer: document.getElementById('sigma-container'),
             loadingOverlay: document.getElementById('loading-overlay'),
-            yearSelect: document.getElementById('year-select'),
+            yearFrom: document.getElementById('year-from'),
+            yearTo: document.getElementById('year-to'),
+            globalSearch: document.getElementById('global-search'),
             composerSearch: document.getElementById('composer-search'),
             participantSearch: document.getElementById('participant-search'),
-            pieceSearch: document.getElementById('piece-search'),
-            eventSearch: document.getElementById('event-search'),
             locationSearch: document.getElementById('location-search'),
-            activitySearch: document.getElementById('activity-search'),
-            genderSelect: document.getElementById('gender-select'),
-            limitSelect: document.getElementById('limit-select'),
             loadBtn: document.getElementById('load-btn'),
-            monthlyBtn: document.getElementById('monthly-btn'),
             clearBtn: document.getElementById('clear-btn'),
             clearCacheBtn: document.getElementById('clear-cache-btn'),
-            graphSearchInput: document.getElementById('graph-search-input')
+            graphSearchInput: document.getElementById('graph-search-input'),
+            nodeSidebar: document.getElementById('node-sidebar'),
+            sidebarLabel: document.getElementById('sidebar-node-label'),
+            sidebarContent: document.getElementById('sidebar-node-content'),
+            closeSidebarBtn: document.getElementById('close-sidebar'),
+            isolateBtn: document.getElementById('isolate-node-btn'),
+            resetViewBtn: document.getElementById('reset-view-btn')
         };
     }
 
@@ -327,6 +330,7 @@
             const cachedEvents = await db.getAllEvents();
             if (cachedEvents && cachedEvents.length > 0) {
                 allEvents = cachedEvents;
+                updateEventsMap(); // ✅ NUEVO: Poblar mapa desde caché
                 console.log('✓ Loaded cached events: ' + cachedEvents.length + ' events');
             }
 
@@ -352,7 +356,7 @@
 
                 const isStale = await db.isDataStale(30);
                 if (isStale) {
-                    console.log('⚠ Cached data is stale (>30 days), consider refreshing');
+                    console.log('Cached data is stale (>30 days), consider refreshing');
                 }
 
                 // Update cache status display
@@ -395,10 +399,10 @@
 
         if (isStale) {
             const btnHtml = '<button onclick="window.handleMonthlyClickGlobal()" style="background: #ff9800; border: none; padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer; color: white;">Actualizar Ahora</button>';
-            statusEl.innerHTML = '⚠ Datos en caché de hace ' + ageText + ' (' + date + '). ' + btnHtml;
+            statusEl.innerHTML = 'Datos en caché de hace ' + ageText + ' (' + date + '). ' + btnHtml;
             statusEl.style.color = '#ff9800';
         } else {
-            statusEl.innerHTML = '✓ Datos cargados desde caché local (actualizado ' + ageText + ' atrás - ' + date + ')';
+            statusEl.innerHTML = 'Datos cargados desde caché local (actualizado ' + ageText + ' atrás - ' + date + ')';
             statusEl.style.color = '#4CAF50';
         }
 
@@ -555,7 +559,7 @@
         if (graphData.nodes && graphData.nodes.length > 0) {
             console.log('Using cached graph data:', graphData.nodes.length, 'nodes');
             renderGraph(graphData.nodes, graphData.links);
-            showMessage('✓ Datos cargados desde caché local. Use "Cargar Todo" para actualizar.');
+            showMessage('Datos cargados desde caché local. Use "Cargar Todo" para actualizar.');
 
             // Verificar si hay filtros desde table-view
             setTimeout(() => {
@@ -575,10 +579,10 @@
             const hasTableFilters = sessionStorage.getItem('graphFiltersFromTable');
             if (hasTableFilters) {
                 console.log('Filters from table detected, loading data...');
-                showMessage('📥 Cargando datos para mostrar el elemento seleccionado...');
+                showMessage('Cargando datos para mostrar el elemento seleccionado...');
                 handleMonthlyClick();
             } else {
-                showMessage('👋 Bienvenido! Haga clic en "Cargar Todo" para comenzar a explorar los datos.');
+                showMessage('Bienvenido! Haga clic en Aplicar Filtros para comenzar a explorar los datos.');
             }
         }
     }
@@ -603,6 +607,9 @@
                 graphData = { nodes: data.nodes, links: data.links || [] };
                 allEvents = data.events || [];
 
+                // ✅ NUEVO: Usar helper centralizado
+                updateEventsMap();
+
                 // Store everything in IndexedDB
                 if (db) await db.storeAllData(data);
 
@@ -615,6 +622,7 @@
                 renderGraph(graphData.nodes, graphData.links);
             } else if (data.events && data.events.length > 0) {
                 allEvents = data.events;
+                updateEventsMap(); // Call updateEventsMap here too
                 // Process all events, no limit
                 processEventsWithWorker(allEvents, {});
             } else {
@@ -632,25 +640,92 @@
         if (elements.loadBtn) {
             elements.loadBtn.addEventListener('click', handleLoadClick);
         }
-        if (elements.monthlyBtn) {
-            elements.monthlyBtn.addEventListener('click', handleMonthlyClick);
-        }
         if (elements.clearBtn) {
             elements.clearBtn.addEventListener('click', handleClearClick);
         }
         if (elements.clearCacheBtn) {
             elements.clearCacheBtn.addEventListener('click', handleClearCacheClick);
         }
+
+
+
+        // Advanced filters toggle
+        const toggleBtn = document.getElementById('toggle-advanced');
+        const secondaryFilters = document.getElementById('secondary-filters');
+        if (toggleBtn && secondaryFilters) {
+            toggleBtn.addEventListener('click', () => {
+                const isHidden = secondaryFilters.style.display === 'none';
+                secondaryFilters.style.display = isHidden ? 'flex' : 'none';
+                toggleBtn.innerText = isHidden ? 'Ocultar' : 'Config';
+                toggleBtn.title = isHidden ? 'Ocultar filtros' : 'Más filtros';
+            });
+        }
+
+        setupInteractiveLegend();
+    }
+
+    function setupInteractiveLegend() {
+        const legendItems = document.querySelectorAll('.legend-item');
+        const hiddenTypes = new Set();
+
+        legendItems.forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            const type = item.getAttribute('data-type');
+
+            if (!checkbox || !type) return;
+
+            // Handle checkbox change
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    hiddenTypes.delete(type);
+                    item.classList.remove('inactive');
+                } else {
+                    hiddenTypes.add(type);
+                    item.classList.add('inactive');
+                }
+                filterGraphByTypes(hiddenTypes);
+            });
+
+            // Handle click on item text/dot (toggle checkbox)
+            item.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+    }
+
+    function filterGraphByTypes(hiddenTypes) {
+        if (!currentGraph || !sigma) return;
+
+        currentGraph.forEachNode((node, attrs) => {
+            const isHidden = hiddenTypes.has(attrs.nodeType);
+            currentGraph.setNodeAttribute(node, 'hidden', isHidden);
+        });
+
+        currentGraph.forEachEdge((edge, attrs, source, target) => {
+            const sourceHidden = currentGraph.getNodeAttribute(source, 'hidden');
+            const targetHidden = currentGraph.getNodeAttribute(target, 'hidden');
+            currentGraph.setEdgeAttribute(edge, 'hidden', sourceHidden || targetHidden);
+        });
+
+        sigma.refresh();
+
+        const visibleCount = currentGraph.nodes().filter(n => !currentGraph.getNodeAttribute(n, 'hidden')).length;
+        showNotification(`📊 Visualizando ${visibleCount} de ${currentGraph.order} nodos`, 2000);
     }
 
     function handleLoadClick() {
         const filters = getFilters();
         console.log('Load clicked with filters:', filters);
 
-        if (graphData.nodes && graphData.nodes.length > 0) {
-            filterGraphData(filters);
-        } else if (allEvents.length > 0) {
+        if (allEvents && allEvents.length > 0) {
+            // Prefer processing all events to ensure we find everything matching the filters
             processEventsWithWorker(allEvents, filters);
+        } else if (graphData.nodes && graphData.nodes.length > 0) {
+            // Fallback to filtering existing graph if events are not available
+            filterGraphData(filters);
         } else {
             showMessage('No hay datos. Use "Cargar Todo" primero.');
         }
@@ -678,6 +753,7 @@
             });
 
             allEvents = data.events || [];
+            updateEventsMap(); // Call updateEventsMap here
 
             if (data.nodes && data.nodes.length > 0) {
                 graphData = { nodes: data.nodes, links: data.links || [] };
@@ -696,19 +772,19 @@
                         // Get and show storage stats
                         const stats = await db.getStats();
                         if (stats) {
-                            console.log('📊 Storage Stats:', stats);
-                            const msg = '✓ Datos guardados localmente<br><br>' +
-                                '📦 ' + stats.events + ' eventos<br>' +
-                                '🎵 ' + stats.nodes + ' nodos<br>' +
-                                '🔗 ' + stats.links + ' enlaces<br>' +
-                                '👤 ' + stats.composers + ' compositores<br>' +
-                                '🏙️ ' + stats.cities + ' ciudades<br>' +
-                                '🎹 ' + stats.instruments + ' instrumentos<br><br>' +
-                                '💾 Tamaño aproximado: ' + stats.estimatedSizeMB + ' MB<br><br>' +
+                            console.log('Storage Stats:', stats);
+                            const msg = 'Datos guardados localmente<br><br>' +
+                                'Eventos: ' + stats.events + '<br>' +
+                                'Nodos: ' + stats.nodes + '<br>' +
+                                'Enlaces: ' + stats.links + '<br>' +
+                                'Compositores: ' + stats.composers + '<br>' +
+                                'Ciudades: ' + stats.cities + '<br>' +
+                                'Instrumentos: ' + stats.instruments + '<br><br>' +
+                                'Tamaño aproximado: ' + stats.estimatedSizeMB + ' MB<br><br>' +
                                 '<small>La próxima vez cargarán instantáneamente.</small>';
                             showMessage(msg);
                         } else {
-                            showMessage('✓ Datos guardados localmente. La próxima vez cargarán instantáneamente.');
+                            showMessage('Datos guardados localmente. La próxima vez cargarán instantáneamente.');
                         }
 
                         // Small delay to show the message
@@ -756,15 +832,12 @@
     window.handleMonthlyClickGlobal = handleMonthlyClick;
 
     function handleClearClick() {
-        if (elements.yearSelect) elements.yearSelect.value = '';
+        if (elements.yearFrom) elements.yearFrom.value = '';
+        if (elements.yearTo) elements.yearTo.value = '';
+        if (elements.globalSearch) elements.globalSearch.value = '';
         if (elements.composerSearch) elements.composerSearch.value = '';
         if (elements.participantSearch) elements.participantSearch.value = '';
-        if (elements.pieceSearch) elements.pieceSearch.value = '';
-        if (elements.eventSearch) elements.eventSearch.value = '';
         if (elements.locationSearch) elements.locationSearch.value = '';
-        if (elements.activitySearch) elements.activitySearch.value = '';
-        if (elements.genderSelect) elements.genderSelect.value = '';
-        if (elements.limitSelect) elements.limitSelect.value = '500';
 
         if (graphData.nodes && graphData.nodes.length > 0) {
             renderGraph(graphData.nodes, graphData.links);
@@ -796,9 +869,10 @@
             // Resetear estado local
             graphData = { nodes: [], links: [] };
             allEvents = [];
+            allEventsMap.clear(); // Clear the map too
             filterParams = null;
 
-            showMessage('✓ Caché limpiada. Haga clic en "Cargar Todo" para recargar los datos.');
+            showMessage('Caché limpiada. Haga clic en Aplicar Filtros para recargar los datos.');
         } catch (err) {
             console.error('Error limpiando caché:', err);
             showMessage('Error al limpiar caché: ' + err.message);
@@ -807,15 +881,13 @@
 
     function getFilters() {
         return {
-            year: (elements.yearSelect && elements.yearSelect.value) || '',
+            yearFrom: (elements.yearFrom && elements.yearFrom.value) || '',
+            yearTo: (elements.yearTo && elements.yearTo.value) || '',
+            global_q: (elements.globalSearch && elements.globalSearch.value && elements.globalSearch.value.trim()) || '',
             composer_q: (elements.composerSearch && elements.composerSearch.value && elements.composerSearch.value.trim()) || '',
             participant_q: (elements.participantSearch && elements.participantSearch.value && elements.participantSearch.value.trim()) || '',
-            piece_q: (elements.pieceSearch && elements.pieceSearch.value && elements.pieceSearch.value.trim()) || '',
-            name_q: (elements.eventSearch && elements.eventSearch.value && elements.eventSearch.value.trim()) || '',
             location_q: (elements.locationSearch && elements.locationSearch.value && elements.locationSearch.value.trim()) || '',
-            activity_q: (elements.activitySearch && elements.activitySearch.value && elements.activitySearch.value.trim()) || '',
-            gender_q: (elements.genderSelect && elements.genderSelect.value) || '',
-            limit: parseInt((elements.limitSelect && elements.limitSelect.value) || '500') || 500
+            limit: 1000
         };
     }
 
@@ -1022,11 +1094,16 @@
                 currentGraph.addNode(node.id, {
                     label: node.label,
                     size: node.size,
+                    originalSize: node.size,
                     color: getNodeColor(node.type),
                     nodeType: node.type,
+                    year: node.year,
+                    gender: node.gender,
+                    eventData: node.eventData, // ✅ NUEVO: Pasar datos completos del evento
+                    pieceData: node.pieceData, // ✅ NUEVO: Pasar datos de la obra
                     hidden: false,
-                    highlighted: false,  // ✅ NUEVO: Asegurar que NO está marcado
-                    selected: false      // ✅ NUEVO: Asegurar que NO está seleccionado
+                    highlighted: false,
+                    selected: false
                 });
             }
 
@@ -1249,10 +1326,26 @@
         if (!sigma || !currentGraph) return;
 
         sigma.on('clickNode', ({ node }) => {
-            const attrs = currentGraph.getNodeAttributes(node);
-            const degree = currentGraph.degree(node);
-            alert(`${attrs.label}\n${attrs.nodeType}\nConexiones: ${degree}`);
+            showNodeSidebar(node);
         });
+
+        if (elements.closeSidebarBtn) {
+            elements.closeSidebarBtn.addEventListener('click', closeNodeSidebar);
+        }
+
+        if (elements.isolateBtn) {
+            elements.isolateBtn.addEventListener('click', () => {
+                const nodeId = elements.isolateBtn.dataset.nodeId;
+                if (nodeId) isolateNode(nodeId);
+            });
+        }
+
+        if (elements.resetViewBtn) {
+            elements.resetViewBtn.addEventListener('click', () => {
+                resetView();
+                closeNodeSidebar();
+            });
+        }
 
         sigma.on('enterNode', ({ node }) => {
             highlightNode(node);
@@ -1302,21 +1395,216 @@
     function resetHighlight() {
         if (!currentGraph) return;
 
+        // Si estamos en modo "aislado", no resetear todo el grafo
+        const isIsolated = elements.resetViewBtn && elements.resetViewBtn.style.display !== 'none';
+
         currentGraph.forEachNode((node, attrs) => {
+            if (isIsolated && attrs.hidden) return; // Mantener ocultos si está aislado
+
             currentGraph.setNodeAttribute(node, 'color', getNodeColor(attrs.nodeType));
-            currentGraph.setNodeAttribute(node, 'size', 8);
-            currentGraph.setNodeAttribute(node, 'hidden', false);
+            currentGraph.setNodeAttribute(node, 'size', attrs.originalSize || 8);
             currentGraph.setNodeAttribute(node, 'highlighted', false);
-            currentGraph.setNodeAttribute(node, 'selected', false);
         });
 
         currentGraph.forEachEdge((edge) => {
+            if (isIsolated && currentGraph.getEdgeAttribute(edge, 'hidden')) return;
+
             currentGraph.setEdgeAttribute(edge, 'color', '#404040');
             currentGraph.setEdgeAttribute(edge, 'size', 0.5);
-            currentGraph.setEdgeAttribute(edge, 'hidden', false);
         });
 
         sigma.refresh();
+    }
+
+    // ==================== SIDEBAR FUNCTIONS ====================
+
+    function showNodeSidebar(nodeId) {
+        if (!currentGraph || !elements.nodeSidebar) return;
+
+        const attrs = currentGraph.getNodeAttributes(nodeId);
+        const degree = currentGraph.degree(nodeId);
+        const neighbors = currentGraph.neighbors(nodeId);
+
+        // Actualizar título
+        if (elements.sidebarLabel) elements.sidebarLabel.textContent = attrs.label;
+
+        // Preparar contenido dinámico
+        let html = `
+            <div class="node-type-badge" style="background: ${getNodeColor(attrs.nodeType)}; color: ${attrs.nodeType === 'composer' || attrs.nodeType === 'piece' ? '#333' : 'white'}">
+                ${attrs.nodeType}
+            </div>
+        `;
+
+        // Lógica de renderizado según el tipo de nodo
+        let e = attrs.eventData;
+
+        // ✅ REFUERZO: Si no tiene eventData (carga inicial/caché), buscar en el mapa o array
+        if (attrs.nodeType === 'event' && !e) {
+            const rawId = nodeId.replace('event_', '');
+
+            // 1. Intentar por ID directo
+            e = allEventsMap.get(parseInt(rawId)) || allEventsMap.get(rawId);
+
+            // 2. Intentar por hash del nombre
+            if (!e) {
+                const searchId = String(rawId);
+                e = allEvents.find(ev => {
+                    const h = hashString(ev.name);
+                    return String(ev.id) === searchId || h === searchId;
+                });
+            }
+        }
+
+        if (attrs.nodeType === 'event' && e) {
+            // Guardar el enriquecimiento para futuras clics
+            if (!attrs.eventData) {
+                currentGraph.setNodeAttribute(nodeId, 'eventData', e);
+            }
+
+            // Extraer año con máxima resiliencia
+            const displayYear = e.year || e.date?.split('-')[2] || e.date?.split('/')[2] || attrs.year || 'N/A';
+
+            html += `
+                <div class="info-group">
+                    <span class="info-label">Fecha / Año</span>
+                    <span class="info-value">${e.date || displayYear}</span>
+                </div>
+                <div class="info-group">
+                    <span class="info-label">Ubicación</span>
+                    <span class="info-value">${e.location || 'N/A'}</span>
+                </div>
+                ${e.cycle && e.cycle !== 'Ninguno' ? `
+                <div class="info-group">
+                    <span class="info-label">Ciclo</span>
+                    <span class="info-value">${e.cycle}</span>
+                </div>` : ''}
+                <div class="info-group">
+                    <span class="info-label">Tipo de Evento</span>
+                    <span class="info-value">${e.event_type || 'N/A'}</span>
+                </div>
+                
+                <div class="info-group">
+                    <span class="info-label">Participantes (${e.participants?.length || 0})</span>
+                    <div class="info-value sidebar-list">
+                        ${(e.participants || []).map(p => `
+                            <div class="list-item">
+                                <strong>${p.name}</strong>
+                                ${p.activity ? `<br><small>${p.activity}</small>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <span class="info-label">Programa (${e.program?.length || 0})</span>
+                    <div class="info-value sidebar-list">
+                        ${(e.program || []).map(p => `
+                            <div class="list-item">
+                                <strong>${p.piece_name}</strong>
+                                <br><small>${(p.composers || []).join(', ')}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                ${e.sources ? `
+                <div class="info-group">
+                    <span class="info-label">Fuentes</span>
+                    <span class="info-value" style="font-size: 0.8rem; font-style: italic;">${e.sources}</span>
+                </div>` : ''}
+            `;
+        } else {
+            // Información genérica para otros tipos de nodos
+            html += `
+                <div class="info-group">
+                    <span class="info-label">Conexiones</span>
+                    <span class="info-value">${degree} nodos vinculados</span>
+                </div>
+            `;
+
+            if (attrs.year) {
+                html += `<div class="info-group"><span class="info-label">Año</span><span class="info-value">${attrs.year}</span></div>`;
+            }
+            if (attrs.gender) {
+                html += `<div class="info-group"><span class="info-label">Género</span><span class="info-value">${attrs.gender}</span></div>`;
+            }
+
+            // Listar tipos de conexiones
+            const neighborsByType = {};
+            neighbors.forEach(nId => {
+                const nAttrs = currentGraph.getNodeAttributes(nId);
+                if (!neighborsByType[nAttrs.nodeType]) neighborsByType[nAttrs.nodeType] = [];
+                neighborsByType[nAttrs.nodeType].push(nAttrs.label);
+            });
+
+            for (const [type, labels] of Object.entries(neighborsByType)) {
+                html += `
+                    <div class="info-group">
+                        <span class="info-label">${type} relacionados</span>
+                        <div class="info-value sidebar-list">
+                            ${labels.slice(0, 15).map(l => `<div class="list-item-mini">${l}</div>`).join('')}
+                            ${labels.length > 15 ? '<div class="list-item-mini">...</div>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        if (elements.sidebarContent) elements.sidebarContent.innerHTML = html;
+
+        // Vincular ID al botón de aislar
+        if (elements.isolateBtn) elements.isolateBtn.dataset.nodeId = nodeId;
+
+        // Mostrar sidebar
+        elements.nodeSidebar.classList.add('active');
+
+        // Resaltar el nodo en el grafo
+        highlightNode(nodeId);
+    }
+
+    function closeNodeSidebar() {
+        if (elements.nodeSidebar) elements.nodeSidebar.classList.remove('active');
+        resetHighlight();
+    }
+
+    function isolateNode(nodeId) {
+        if (!currentGraph || !sigma) return;
+
+        const neighbors = new Set(currentGraph.neighbors(nodeId));
+        neighbors.add(nodeId);
+
+        currentGraph.forEachNode((node) => {
+            currentGraph.setNodeAttribute(node, 'hidden', !neighbors.has(node));
+        });
+
+        currentGraph.forEachEdge((edge, attrs, source, target) => {
+            const isVisible = neighbors.has(source) && neighbors.has(target);
+            currentGraph.setEdgeAttribute(edge, 'hidden', !isVisible);
+        });
+
+        if (elements.resetViewBtn) elements.resetViewBtn.style.display = 'block';
+        if (elements.isolateBtn) elements.isolateBtn.style.display = 'none';
+
+        sigma.refresh();
+        showNotification(`Vista aislada: ${neighbors.size} nodos visibles`, 3000);
+    }
+
+    function resetView() {
+        if (!currentGraph || !sigma) return;
+
+        currentGraph.forEachNode((node) => {
+            currentGraph.setNodeAttribute(node, 'hidden', false);
+        });
+
+        currentGraph.forEachEdge((edge) => {
+            currentGraph.setEdgeAttribute(edge, 'hidden', false);
+        });
+
+        if (elements.resetViewBtn) elements.resetViewBtn.style.display = 'none';
+        if (elements.isolateBtn) elements.isolateBtn.style.display = 'block';
+
+        sigma.refresh();
+        showNotification('Vista completa restaurada', 2000);
     }
 
 
@@ -1366,6 +1654,8 @@
     // ==================== BÚSQUEDA EN GRAFO (PRODUCCIÓN) ====================
     function setupSearchFunctionality() {
         const input = elements.graphSearchInput;
+        const clearBtn = document.getElementById('clear-search');
+        const resultsCountEl = document.getElementById('search-results-count');
 
         if (!input) {
             console.warn('Search input not found');
@@ -1381,18 +1671,27 @@
                 return;
             }
 
+            if (clearBtn) clearBtn.style.display = term ? 'block' : 'none';
+
             if (!term) {
                 resetSearch();
+                if (resultsCountEl) resultsCountEl.textContent = '';
                 return;
             }
 
             const matches = new Set();
 
             currentGraph.forEachNode((node, attrs) => {
-                if ((attrs.label || '').toLowerCase().includes(term)) {
+                const label = (attrs.label || '').toLowerCase();
+                const year = attrs.year ? String(attrs.year) : '';
+                if (label.includes(term) || year.includes(term)) {
                     matches.add(node);
                 }
             });
+
+            if (resultsCountEl) {
+                resultsCountEl.textContent = `${matches.size} resultado${matches.size !== 1 ? 's' : ''} encontrado${matches.size !== 1 ? 's' : ''}`;
+            }
 
             if (matches.size === 0) {
                 resetSearch();
@@ -1447,6 +1746,7 @@
 
         const resetSearch = () => {
             if (!currentGraph || !sigma) return;
+            if (clearBtn) clearBtn.style.display = 'none';
 
             currentGraph.forEachNode(n => {
                 const attrs = currentGraph.getNodeAttributes(n);
@@ -1469,6 +1769,15 @@
             searchTimeout = setTimeout(performSearch, 500);
         });
 
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                resetSearch();
+                if (resultsCountEl) resultsCountEl.textContent = '';
+                input.focus();
+            });
+        }
+
         // Enter para búsqueda inmediata
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -1483,8 +1792,34 @@
             if (e.key === 'Escape') {
                 input.value = '';
                 resetSearch();
+                if (resultsCountEl) resultsCountEl.textContent = '';
             }
         });
     }
+
+    // ==================== UTILITIES ====================
+
+    function hashString(str) {
+        if (!str) return '0';
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0;
+        }
+        return Math.abs(hash).toString();
+    }
+
+    function updateEventsMap() {
+        if (!allEventsMap) allEventsMap = new Map();
+        allEventsMap.clear();
+        console.log('Map: Syncing allEventsMap with', allEvents.length, 'events');
+        allEvents.forEach(ev => {
+            if (ev.id) allEventsMap.set(ev.id, ev);
+        });
+    }
+
+    // Exportación para uso global si es necesario
+    window.handleMonthlyClickGlobal = handleMonthlyClick;
 
 })();

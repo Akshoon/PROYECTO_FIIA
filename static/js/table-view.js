@@ -126,10 +126,12 @@ function setupEventListeners() {
     // Filtros de año
     document.getElementById('year-from').addEventListener('change', (e) => {
         state.filters.yearFrom = e.target.value ? parseInt(e.target.value) : null;
+        applyFilters();
     });
 
     document.getElementById('year-to').addEventListener('change', (e) => {
         state.filters.yearTo = e.target.value ? parseInt(e.target.value) : null;
+        applyFilters();
     });
 
     // Filtros avanzados
@@ -276,12 +278,21 @@ function processData(data) {
             if (p.gender) genders.add(p.gender);
         });
 
+        // Extraer año si falta
+        let yearVal = event.year;
+        if (!yearVal && event.date) {
+            const dateObj = new Date(event.date);
+            if (!isNaN(dateObj.getTime())) {
+                yearVal = dateObj.getFullYear();
+            }
+        }
+
         return {
             ...event,
             participants_count: (event.participants || []).length,
             genders: Array.from(genders).join(', ') || 'N/A',
             date: formatDate(event.date) || 'N/A',
-            year: event.year || 'N/A',
+            year: yearVal || 'N/A',
             cycle: event.cycle || 'Ninguno',
             event_type: event.event_type || 'N/A',
             location: event.location || 'N/A'
@@ -493,9 +504,7 @@ function renderCategoryFilters() {
     const container = document.getElementById('category-filters');
     const categories = [
         { id: 'concert', label: 'Concierto', icon: 'music' },
-        { id: 'symphony', label: 'Sinfonía', icon: 'guitar' },
-        { id: 'opera', label: 'Ópera', icon: 'theater-masks' },
-        { id: 'chamber', label: 'Música de Cámara', icon: 'compact-disc' }
+        { id: 'opera', label: 'Ópera', icon: 'theater-masks' }
     ];
 
     container.innerHTML = categories.map(cat => `
@@ -538,9 +547,7 @@ function applyFilters() {
     // Mapeo de categorías a tipos de evento
     const categoryToEventType = {
         'concert': ['Concierto', 'Recital'],
-        'symphony': ['Sinfonía', 'Sinfónica', 'Orquesta'],
-        'opera': ['Ópera', 'Opera'],
-        'chamber': ['Música de Cámara', 'Cámara', 'Cuarteto', 'Trío']
+        'opera': ['Ópera', 'Opera']
     };
 
     state.filteredData = currentData.filter(item => {
@@ -570,13 +577,18 @@ function applyFilters() {
             }
 
             // Filtro de año
-            if (state.filters.yearFrom && item.year !== 'N/A') {
-                const year = parseInt(item.year);
-                if (!isNaN(year) && year < state.filters.yearFrom) return false;
+            const yearNum = (item.year && item.year !== 'N/A') ? parseInt(item.year) : null;
+
+            if (state.filters.yearFrom && yearNum) {
+                if (yearNum < state.filters.yearFrom) return false;
             }
-            if (state.filters.yearTo && item.year !== 'N/A') {
-                const year = parseInt(item.year);
-                if (!isNaN(year) && year > state.filters.yearTo) return false;
+            if (state.filters.yearTo && yearNum) {
+                if (yearNum > state.filters.yearTo) return false;
+            }
+
+            // Si hay filtro de año pero el item no tiene año, lo ocultamos
+            if ((state.filters.yearFrom || state.filters.yearTo) && !yearNum) {
+                return false;
             }
 
             // Filtro de ciudad

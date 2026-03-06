@@ -147,45 +147,40 @@
         </header>
 
         <div class="filters-bar">
-            <div class="filter-group">
-                <span class="group-label">General</span>
-                <select id="year-select" class="filter-select">
-                    <option value="">Todos los años</option>
-                </select>
-                <select id="gender-select" class="filter-select">
-                    <option value="">Género</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Femenino">Femenino</option>
-                </select>
-                <select id="limit-select" class="filter-select">
-                    <option value="100">100</option>
-                    <option value="200">200</option>
-                    <option value="500" selected>500</option>
-                    <option value="1000">1000</option>
-                    <option value="2000">2000</option>
-                </select>
-            </div>
+
 
             <div class="filter-group">
                 <span class="group-label">Búsqueda</span>
-                <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
-                <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
-                <input type="text" id="piece-search" class="filter-input" placeholder="Obra...">
+                <input type="text" id="global-search" class="filter-input" placeholder="Buscar...">
+            </div>
+
+            <div class="filter-group">
+                <span class="group-label">Año</span>
+                <div class="year-range">
+                    <input type="number" id="year-from" class="filter-input small" placeholder="Desde" min="1945"
+                        max="2023">
+                    <span>-</span>
+                    <input type="number" id="year-to" class="filter-input small" placeholder="Hasta" min="1945"
+                        max="2023">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <button id="toggle-advanced" class="filter-btn filter-btn-secondary"
+                    title="Más filtros">Opciones</button>
             </div>
 
             <div class="filter-group secondary-filters" id="secondary-filters" style="display: none;">
-                <input type="text" id="event-search" class="filter-input" placeholder="Evento...">
+                <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
+                <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
                 <input type="text" id="location-search" class="filter-input" placeholder="Ubicación...">
-                <input type="text" id="activity-search" class="filter-input" placeholder="Actividad...">
             </div>
 
             <div class="filter-actions">
-                <button id="toggle-advanced" class="filter-btn filter-btn-secondary" title="Más filtros">⚙️</button>
-                <button id="load-btn" class="filter-btn filter-btn-primary">Filtrar</button>
-                <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
+                <button id="load-btn" class="filter-btn filter-btn-primary">Aplicar Filtros</button>
                 <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
                 <button id="clear-cache-btn" class="filter-btn filter-btn-secondary" style="background: #c0392b;"
-                    title="Eliminar datos locales">Limpiar Caché</button>
+                    title="Eliminar caché">Borrar Caché</button>
             </div>
         </div>
 
@@ -193,20 +188,21 @@
             <div id="sigma-container"></div>
 
             <div class="legend-panel">
-                <div class="legend-title">Leyenda</div>
-                <div class="legend-item"><span class="legend-color"
+                <div class="legend-title">Visualizar Nodos</div>
+                <div class="legend-item" data-type="event"><input type="checkbox" checked> <span class="legend-color"
                         style="background: #FF6B6B"></span><span>Eventos</span></div>
-                <div class="legend-item"><span class="legend-color"
+                <div class="legend-item" data-type="piece"><input type="checkbox" checked> <span class="legend-color"
                         style="background: #4ECDC4"></span><span>Obras</span></div>
-                <div class="legend-item"><span class="legend-color"
+                <div class="legend-item" data-type="composer"><input type="checkbox" checked> <span class="legend-color"
                         style="background: #FFE66D"></span><span>Compositores</span></div>
-                <div class="legend-item"><span class="legend-color"
-                        style="background: #95E1D3"></span><span>Participantes</span></div>
-                <div class="legend-item"><span class="legend-color"
+                <div class="legend-item" data-type="participant"><input type="checkbox" checked> <span
+                        class="legend-color" style="background: #95E1D3"></span><span>Participantes</span></div>
+                <div class="legend-item" data-type="city"><input type="checkbox" checked> <span class="legend-color"
                         style="background: #A8E6CF"></span><span>Ciudades</span></div>
-                <div class="legend-item"><span class="legend-color"
-                        style="background: #FF8B94"></span><span>Instrumentos</span></div>
-                <div class="legend-item"><span class="legend-color" style="background: #8B7FFF"></span><span>Tipos de
+                <div class="legend-item" data-type="instrument"><input type="checkbox" checked> <span
+                        class="legend-color" style="background: #FF8B94"></span><span>Instrumentos</span></div>
+                <div class="legend-item" data-type="event_type"><input type="checkbox" checked> <span
+                        class="legend-color" style="background: #8B7FFF"></span><span>Tipos de
                         Evento</span></div>
             </div>
 
@@ -217,13 +213,33 @@
             </div>
 
             <div class="search-box">
-                <label for="graph-search-input">Buscar en el Grafo</label>
-                <input type="text" id="graph-search-input" placeholder="Escriba para buscar..." autocomplete="off" />
+                <div class="search-box-inner">
+                    <span class="search-icon">Busqueda</span>
+                    <input type="text" id="graph-search-input" placeholder="Buscar en el grafo (nombre, año, etc)..."
+                        autocomplete="off" />
+                    <button id="clear-search" class="clear-search-btn" title="Limpiar búsqueda">✕</button>
+                </div>
+                <div id="search-results-count" class="search-results-count"></div>
             </div>
 
             <div class="loading-overlay" id="loading-overlay" style="display: none;">
                 <div class="spinner"></div>
                 <span>Cargando datos...</span>
+            </div>
+
+            <div id="node-sidebar" class="node-sidebar">
+                <div class="node-sidebar-header">
+                    <h3 id="sidebar-node-label">Detalles del Nodo</h3>
+                    <button class="close-sidebar" id="close-sidebar" title="Cerrar">&times;</button>
+                </div>
+                <div class="node-sidebar-content" id="sidebar-node-content">
+                    <!-- Dynamic content will be injected here -->
+                </div>
+                <div class="node-sidebar-footer">
+                    <button id="isolate-node-btn" class="sidebar-btn sidebar-btn-primary">Aislar Nodo</button>
+                    <button id="reset-view-btn" class="sidebar-btn sidebar-btn-secondary"
+                        style="display: none;">Restablecer Vista</button>
+                </div>
             </div>
         </div>
     </div>

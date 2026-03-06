@@ -1,7 +1,7 @@
 // Web Worker for processing events into graph data or filtering existing graph data
 'use strict';
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
     console.log('Worker: Received message');
 
     const { events, nodes, links, filters } = e.data;
@@ -30,12 +30,11 @@ self.onmessage = function(e) {
 
 function filterGraphData(nodes, links, filters) {
     filters = filters || {};
-    
+
     // Check if any filter is active
-    const hasFilters = filters.year || filters.composer_q || filters.participant_q || 
-                       filters.piece_q || filters.name_q || filters.location_q ||
-                       filters.activity_q || filters.gender_q;
-    
+    const hasFilters = filters.yearFrom || filters.yearTo || filters.global_q ||
+        filters.composer_q || filters.participant_q || filters.location_q;
+
     if (!hasFilters) {
         return { filteredNodes: nodes, filteredLinks: links };
     }
@@ -45,10 +44,10 @@ function filterGraphData(nodes, links, filters) {
     // Debug: check if nodes have year field
     const eventNodes = nodes.filter(n => n.type === 'event');
     console.log('Worker: Total event nodes:', eventNodes.length);
-    
+
     const nodesWithYear = eventNodes.filter(n => n.year !== undefined && n.year !== null);
     console.log('Worker: Event nodes with year:', nodesWithYear.length);
-    
+
     if (nodesWithYear.length > 0) {
         const sampleYears = nodesWithYear.slice(0, 5).map(n => n.year);
         console.log('Worker: Sample years:', sampleYears);
@@ -73,29 +72,32 @@ function filterGraphData(nodes, links, filters) {
         const label = (node.label || '').toLowerCase();
         const nodeType = node.type || '';
 
-        // Year filter - only applies to event nodes
-        if (filters.year && nodeType === 'event') {
-            const nodeYear = node.year;
-            const filterYear = String(filters.year);
-            
-            // Check multiple possible formats for year
-            if (nodeYear !== undefined && nodeYear !== null) {
-                if (String(nodeYear) === filterYear) {
+        // Year range filter - only applies to event nodes
+        if ((filters.yearFrom || filters.yearTo) && nodeType === 'event') {
+            const nodeYear = getYear(node); // ✅ USAR HELPER
+            if (!isNaN(nodeYear)) {
+                const From = parseInt(filters.yearFrom) || 0;
+                const To = parseInt(filters.yearTo) || 3000;
+                if (nodeYear >= From && nodeYear <= To) {
                     matchingNodeIds.add(node.id);
                     continue;
                 }
+            } else {
+                // Si el evento no tiene año detectable, NO lo mostramos si hay filtro de año activado
+                continue;
             }
-            
-            // Also try to extract year from label if not in year field
-            // Labels might be like "Concierto 2023" or contain the year
-            if (label.includes(filterYear)) {
+        }
+
+        // Global search - applies to all nodes
+        if (filters.global_q) {
+            if (label.includes(filters.global_q.toLowerCase())) {
                 matchingNodeIds.add(node.id);
                 continue;
             }
         }
 
-        // If no year filter, or this isn't an event, check other filters
-        if (!filters.year || nodeType !== 'event') {
+        // If no primary filters matched, check specific fields
+        if (!(filters.yearFrom || filters.yearTo || filters.global_q)) {
             let matches = false;
 
             // Event name filter
@@ -142,13 +144,7 @@ function filterGraphData(nodes, links, filters) {
                 }
             }
 
-            // Gender filter
-            if (filters.gender_q && nodeType === 'participant') {
-                const nodeGender = node.gender || '';
-                if (nodeGender.toLowerCase().includes(filters.gender_q.toLowerCase())) {
-                    matches = true;
-                }
-            }
+
 
             if (matches) {
                 matchingNodeIds.add(node.id);
@@ -158,33 +154,52 @@ function filterGraphData(nodes, links, filters) {
 
     console.log('Worker: Matching nodes after first pass:', matchingNodeIds.size);
 
-    // If year filter is set but no events matched, return empty
-    if (filters.year && matchingNodeIds.size === 0) {
-        console.log('Worker: No events match year filter:', filters.year);
-        console.log('Worker: This likely means nodes were loaded without year data.');
-        console.log('Worker: Try clicking "Cargar Todo" to reload data with year information.');
+    // If year range filter is set but no events matched, return empty
+    if ((filters.yearFrom || filters.yearTo) && matchingNodeIds.size === 0) {
         return { filteredNodes: [], filteredLinks: [] };
     }
 
-    // Second pass: expand to include connected nodes (2 levels for better context)
+    // Expand for context (3 levels)
+    // L1: Direct neighbors (e.g., Event -> Participant)
+    // L2: Neighbors of neighbors (e.g., Participant -> Instrument)
+    // L3: Third level (needed if we match Composer -> Piece -> Event -> Participant)
     const expandedIds = new Set(matchingNodeIds);
-    
-    // First level expansion
+
+    // Level 1 expansion
     matchingNodeIds.forEach(nodeId => {
         const neighbors = adjacency.get(nodeId);
-        if (neighbors) {
-            neighbors.forEach(n => expandedIds.add(n));
-        }
+        if (neighbors) neighbors.forEach(n => expandedIds.add(n));
     });
 
-    // Second level expansion (for connected context)
-    const firstLevel = new Set(expandedIds);
-    firstLevel.forEach(nodeId => {
+    // Level 2 expansion
+    const level1 = new Set(expandedIds);
+    level1.forEach(nodeId => {
         const neighbors = adjacency.get(nodeId);
-        if (neighbors) {
-            neighbors.forEach(n => expandedIds.add(n));
-        }
+        if (neighbors) neighbors.forEach(n => expandedIds.add(n));
     });
+
+    // Level 3 expansion
+    const level2 = new Set(expandedIds);
+    level2.forEach(nodeId => {
+        const neighbors = adjacency.get(nodeId);
+        if (neighbors) neighbors.forEach(n => expandedIds.add(n));
+    });
+
+    // ✅ NUEVO: Filtrado estricto final por año para eventos "resucitados" por expansión
+    if (filters.yearFrom || filters.yearTo) {
+        const from = parseInt(filters.yearFrom) || 0;
+        const to = parseInt(filters.yearTo) || 3000;
+
+        for (const id of expandedIds) {
+            const node = nodeById.get(id);
+            if (node && node.type === 'event') {
+                const nodeYear = getYear(node); // ✅ USAR HELPER
+                if (isNaN(nodeYear) || nodeYear < from || nodeYear > to) {
+                    expandedIds.delete(id);
+                }
+            }
+        }
+    }
 
     // Filter nodes and links
     const filteredNodes = nodes.filter(n => expandedIds.has(n.id));
@@ -203,15 +218,54 @@ function processEventsToGraph(events, filters) {
     // Apply event-level filters during processing
     let filteredEvents = events;
 
-    if (filters.year) {
-        const yearFilter = String(filters.year);
-        filteredEvents = filteredEvents.filter(e => e.year && String(e.year) === yearFilter);
-        console.log('Worker: Year filter applied, events:', filteredEvents.length);
+    if (filters.global_q) {
+        const q = filters.global_q.toLowerCase();
+        filteredEvents = filteredEvents.filter(e => {
+            const participantsText = (e.participants || []).map(p => p.name).join(' ');
+            const piecesText = (e.program || []).map(p => p.piece_name).join(' ');
+            const composersText = (e.program || []).flatMap(p => p.composers || []).join(' ');
+            const searchableText = `${e.name} ${e.location} ${e.composer} ${e.year} ${participantsText} ${piecesText} ${composersText}`.toLowerCase();
+            return searchableText.includes(q);
+        });
+    }
+
+    if (filters.participant_q) {
+        const q = filters.participant_q.toLowerCase();
+        filteredEvents = filteredEvents.filter(e =>
+            e.participants && e.participants.some(p => p.name.toLowerCase().includes(q))
+        );
+    }
+
+    if (filters.composer_q) {
+        const q = filters.composer_q.toLowerCase();
+        filteredEvents = filteredEvents.filter(e =>
+            (e.composer && e.composer.toLowerCase().includes(q)) ||
+            (e.program && e.program.some(piece =>
+                (piece.composers && piece.composers.some(c => c.toLowerCase().includes(q))) ||
+                (piece.piece_name && piece.piece_name.toLowerCase().includes(q))
+            ))
+        );
+    }
+
+    if (filters.location_q) {
+        const q = filters.location_q.toLowerCase();
+        filteredEvents = filteredEvents.filter(e => e.location && e.location.toLowerCase().includes(q));
     }
 
     if (filters.name_q) {
         const q = filters.name_q.toLowerCase();
         filteredEvents = filteredEvents.filter(e => e.name && e.name.toLowerCase().includes(q));
+    }
+
+    // ✅ NUEVO: Filtrar por año durante el procesamiento inicial
+    if (filters.yearFrom || filters.yearTo) {
+        const from = parseInt(filters.yearFrom) || 0;
+        const to = parseInt(filters.yearTo) || 3000;
+        filteredEvents = filteredEvents.filter(e => {
+            const year = getYear(e); // ✅ USAR HELPER
+            if (isNaN(year)) return false; // Ser estricto si hay filtro de año
+            return year >= from && year <= to;
+        });
     }
 
     if (filters.limit && filteredEvents.length > filters.limit) {
@@ -225,29 +279,22 @@ function processEventsToGraph(events, filters) {
 
         // Create event node with year stored
         const eventId = `event_${event.id || hashString(event.name || 'unknown')}`;
-        if (!nodeMap.has(eventId)) {
-            nodes.push({
-                id: eventId,
-                label: event.name || 'Evento',
-                type: 'event',
-                year: event.year || null,  // Store year for filtering
-                x: Math.random() * 1000,
-                y: Math.random() * 1000,
-                size: 10
-            });
-            nodeMap.set(eventId, true);
-        }
+        const displayYear = event.year ? ` (${event.year})` : '';
+        nodes.push({
+            id: eventId,
+            label: (event.name || 'Evento') + displayYear,
+            type: 'event',
+            year: event.year || null,
+            eventData: event, // ✅ NUEVO: Guardar todo el objeto del evento
+            x: Math.random() * 1000,
+            y: Math.random() * 1000,
+            size: 10
+        });
 
         // Process participants
         const participants = event.participants || [];
         for (const participant of participants) {
             if (!participant || !participant.name) continue;
-
-            // Apply participant filter
-            if (filters.participant_q && 
-                !participant.name.toLowerCase().includes(filters.participant_q.toLowerCase())) {
-                continue;
-            }
 
             const participantId = `participant_${hashString(participant.name)}`;
             if (!nodeMap.has(participantId)) {
@@ -255,7 +302,7 @@ function processEventsToGraph(events, filters) {
                     id: participantId,
                     label: participant.name,
                     type: 'participant',
-                    gender: participant.gender || null,  // Store gender for filtering
+                    gender: participant.gender || null,
                     x: Math.random() * 1000,
                     y: Math.random() * 1000,
                     size: 8
@@ -270,12 +317,6 @@ function processEventsToGraph(events, filters) {
             if (activity && activity.includes(' - ')) {
                 const instrument = activity.split(' - ')[1].trim();
                 if (instrument && instrument !== 'Ninguno') {
-                    // Apply activity filter
-                    if (filters.activity_q && 
-                        !instrument.toLowerCase().includes(filters.activity_q.toLowerCase())) {
-                        continue;
-                    }
-
                     const instrumentId = `instrument_${hashString(instrument)}`;
                     if (!nodeMap.has(instrumentId)) {
                         nodes.push({
@@ -296,36 +337,25 @@ function processEventsToGraph(events, filters) {
         // Process location
         const location = event.location || '';
         if (location) {
-            // Apply location filter
-            const filterLoc = filters.location_q ? filters.location_q.toLowerCase().trim() : '';
-            const locLower = location.toLowerCase().trim();
-            if (!filters.location_q || locLower.includes(filterLoc)) {
-                const locationId = `location_${hashString(location)}`;
-                if (!nodeMap.has(locationId)) {
-                    nodes.push({
-                        id: locationId,
-                        label: location,
-                        type: 'location',
-                        x: Math.random() * 1000,
-                        y: Math.random() * 1000,
-                        size: 7
-                    });
-                    nodeMap.set(locationId, true);
-                }
-                addLink(links, linkSet, eventId, locationId, 'en ubicación');
+            const locationId = `location_${hashString(location)}`;
+            if (!nodeMap.has(locationId)) {
+                nodes.push({
+                    id: locationId,
+                    label: location,
+                    type: 'location',
+                    x: Math.random() * 1000,
+                    y: Math.random() * 1000,
+                    size: 7
+                });
+                nodeMap.set(locationId, true);
             }
+            addLink(links, linkSet, eventId, locationId, 'en ubicación');
         }
 
         // Process program (pieces)
         const program = event.program || [];
         for (const piece of program) {
             if (!piece || !piece.piece_name) continue;
-
-            // Apply piece filter
-            if (filters.piece_q && 
-                !piece.piece_name.toLowerCase().includes(filters.piece_q.toLowerCase())) {
-                continue;
-            }
 
             const pieceId = `piece_${hashString(piece.piece_name)}`;
             if (!nodeMap.has(pieceId)) {
@@ -345,12 +375,6 @@ function processEventsToGraph(events, filters) {
             const composers = piece.composers || [];
             for (const composerName of composers) {
                 if (!composerName || composerName === 'Desconocido') continue;
-
-                // Apply composer filter
-                if (filters.composer_q && 
-                    !composerName.toLowerCase().includes(filters.composer_q.toLowerCase())) {
-                    continue;
-                }
 
                 const composerId = `composer_${hashString(composerName)}`;
                 if (!nodeMap.has(composerId)) {
@@ -440,4 +464,35 @@ function hashString(str) {
         hash |= 0;
     }
     return Math.abs(hash).toString();
+}
+
+function getYear(nodeOrEvent) {
+    if (!nodeOrEvent) return NaN;
+
+    // 1. Try explicit year field
+    if (nodeOrEvent.year) {
+        const y = parseInt(nodeOrEvent.year);
+        if (!isNaN(y)) return y;
+    }
+
+    // 2. Try to extract from date field (e.g. "1946-10-19" -> 1946)
+    const date = nodeOrEvent.date || (nodeOrEvent.eventData && nodeOrEvent.eventData.date);
+    if (date && typeof date === 'string') {
+        const parts = date.split(/[-/]/);
+        for (const part of parts) {
+            if (part.length === 4) {
+                const y = parseInt(part);
+                if (!isNaN(y)) return y;
+            }
+        }
+    }
+
+    // 3. Try to extract from label (e.g. "Concierto (1954)" -> 1954)
+    const label = nodeOrEvent.label;
+    if (label && typeof label === 'string') {
+        const match = label.match(/\((\d{4})\)/);
+        if (match) return parseInt(match[1]);
+    }
+
+    return NaN;
 }   
