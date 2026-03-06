@@ -147,32 +147,46 @@
         </header>
 
         <div class="filters-bar">
-            <select id="year-select" class="filter-select">
-                <option value="">Todos los anos</option>
-            </select>
-            <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
-            <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
-            <input type="text" id="piece-search" class="filter-input" placeholder="Obra...">
-            <input type="text" id="event-search" class="filter-input" placeholder="Evento...">
-            <input type="text" id="location-search" class="filter-input" placeholder="Ubicacion...">
-            <input type="text" id="activity-search" class="filter-input" placeholder="Actividad...">
-            <select id="gender-select" class="filter-select">
-                <option value="">Genero</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Femenino">Femenino</option>
-            </select>
-            <select id="limit-select" class="filter-select">
-                <option value="100">100</option>
-                <option value="200">200</option>
-                <option value="500" selected>500</option>
-                <option value="1000">1000</option>
-                <option value="2000">2000</option>
-            </select>
-            <button id="load-btn" class="filter-btn filter-btn-primary">Filtrar</button>
-            <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
-            <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
-            <button id="clear-cache-btn" class="filter-btn filter-btn-secondary" style="background: #c0392b;"
-                title="Eliminar datos locales">Limpiar Cache</button>
+            <div class="filter-group">
+                <span class="group-label">General</span>
+                <select id="year-select" class="filter-select">
+                    <option value="">Todos los años</option>
+                </select>
+                <select id="gender-select" class="filter-select">
+                    <option value="">Género</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                </select>
+                <select id="limit-select" class="filter-select">
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500" selected>500</option>
+                    <option value="1000">1000</option>
+                    <option value="2000">2000</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <span class="group-label">Búsqueda</span>
+                <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
+                <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
+                <input type="text" id="piece-search" class="filter-input" placeholder="Obra...">
+            </div>
+
+            <div class="filter-group secondary-filters" id="secondary-filters" style="display: none;">
+                <input type="text" id="event-search" class="filter-input" placeholder="Evento...">
+                <input type="text" id="location-search" class="filter-input" placeholder="Ubicación...">
+                <input type="text" id="activity-search" class="filter-input" placeholder="Actividad...">
+            </div>
+
+            <div class="filter-actions">
+                <button id="toggle-advanced" class="filter-btn filter-btn-secondary" title="Más filtros">⚙️</button>
+                <button id="load-btn" class="filter-btn filter-btn-primary">Filtrar</button>
+                <button id="monthly-btn" class="filter-btn filter-btn-secondary">Cargar Todo</button>
+                <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
+                <button id="clear-cache-btn" class="filter-btn filter-btn-secondary" style="background: #c0392b;"
+                    title="Eliminar datos locales">Limpiar Caché</button>
+            </div>
         </div>
 
         <div class="graph-container">
