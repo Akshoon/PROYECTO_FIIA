@@ -1,38 +1,138 @@
 {
   "base_url": "http://basedeconciertos.uahurtado.cl/api",
   "endpoint": "/events",
-  "query_parameters": {
-    "text_filters": {
-      "name_q": "Filter by event name (case-insensitive partial match)",
-      "composer_q": "Filter by composer name (case-insensitive partial match)",
-      "participant_q": "Filter by participant name (case-insensitive partial match)",
-      "piece_q": "Filter by piece name (case-insensitive partial match)",
-      "activity_q": "Filter by activity (case-insensitive partial match)",
-      "gender_q": "Filter by gender (case-insensitive partial match)"
+  "query_parameters": [
+    {
+      "name": "name_q",
+      "type": "string",
+      "description": "Busca texto en el nombre del evento. Wildcard amplio sobre columna 'name'.",
+      "ai_utility": "Usar cuando el usuario busque conciertos por su título genérico o por palabras clave no indexadas como locaciones."
     },
-    "id_filters": {
-      "city_id": "Filter by city ID (accepts comma-separated lists, e.g., city_id=1,5)",
-      "location_id": "Filter by location ID (accepts comma-separated lists)",
-      "event_type_id": "Filter by event type ID (accepts comma-separated lists)",
-      "cycle_id": "Filter by cycle ID (accepts comma-separated lists)",
-      "organization_id": "Filter by organization ID (accepts comma-separated lists)",
-      "instrument_id": "Filter by instrument ID (accepts comma-separated lists)",
-      "ensemble_id": "Filter by musical ensemble ID (accepts comma-separated lists)",
-      "premiere_type_id": "Filter by premiere type ID (accepts comma-separated lists)",
-      "composer_id": "Filter by composer ID (accepts comma-separated lists)",
-      "participant_id": "Filter by participant ID (accepts comma-separated lists)"
+    {
+      "name": "composer_q",
+      "type": "string",
+      "description": "Busca por texto en el primer o último nombre de un compositor.",
+      "ai_utility": "Fundamental para encontrar participación de un compositor (ej: 'Mozart') detectado en OCR sin necesidad de deducir ID."
     },
-    "other_filters": {
-      "year": "Filter by year (accepts integer list, e.g., year=1985,1986)"
+    {
+      "name": "participant_q",
+      "type": "string",
+      "description": "Busca por texto en el primer o último nombre de un participante (intérprete, director, orador).",
+      "ai_utility": "Crucial para encontrar eventos asociados a un individuo sin conocer su ID (ej: 'Claudio Arrau')."
     },
-    "pagination": {
-      "page": "Page number (default: 1)",
-      "per_page": "Results per page (default: 25, max: 100)"
+    {
+      "name": "piece_q",
+      "type": "string",
+      "description": "Busca por nombre de la obra musical.",
+      "ai_utility": "Filtrar eventos donde se interpretó una pieza específica con nombre parcial. Ej. 'Sinfonía No. 9'. Ignora diferencias menores de digitación."
+    },
+    {
+      "name": "activity_q",
+      "type": "string",
+      "description": "Busca por el nombre de la actividad o rol (ej. 'Piano', 'Director', 'Soprano').",
+      "ai_utility": "Útil para categorizar la programación o encontrar instrumentos solistas expresados de forma textual."
+    },
+    {
+      "name": "gender_q",
+      "type": "string",
+      "description": "Busca por el nombre de un género (ej. 'Femenino').",
+      "ai_utility": "Filtrar eventos vinculados a participantes de un género, si es relevante para análisis estadístico."
+    },
+    {
+      "name": "year",
+      "type": "integer list",
+      "description": "Filtra por años específicos. Acepta múltiples años separados por coma (ej. year=1985,1990).",
+      "ai_utility": "Ideal para delimitar búsquedas temporales cuando el año ha sido claramente identificado en OCR."
+    },
+    {
+      "name": "city_id",
+      "type": "integer list",
+      "description": "Filtra por ID de una o varias ciudades.",
+      "ai_utility": "Restringe la búsqueda a eventos acaecidos estrictamente en zonas geográficas reconocidas."
+    },
+    {
+      "name": "location_id",
+      "type": "integer list",
+      "description": "Filtra por ID de uno o varios recintos.",
+      "ai_utility": "Uso condicional si el OCR logra amarrar con alta certidumbre el string textual a un ID conocido."
+    },
+    {
+      "name": "event_type_id",
+      "type": "integer list",
+      "description": "Filtra por ID taxonómico de tipo de evento (ej. Concierto Sinfónico).",
+      "ai_utility": "Permite estudios pormenorizados del formato del evento."
+    },
+    {
+      "name": "cycle_id",
+      "type": "integer list",
+      "description": "Filtra por ID de un ciclo o temporada.",
+      "ai_utility": "Útil para aglomerar programas de mano escaneados que se declaren como parte de un ciclo o temporada."
+    },
+    {
+      "name": "organization_id",
+      "type": "integer list",
+      "description": "Filtra por ID de organizaciones promotoras/auspiciadoras.",
+      "ai_utility": "Crucial cuando se investiga el impacto cultural de patronos específicos."
+    },
+    {
+      "name": "instrument_id",
+      "type": "integer list",
+      "description": "Filtra por ID asociado oficialmente a instrumentos musicales.",
+      "ai_utility": "Si el OCR/LLM ha traducido exitosamente una subcadena textual a una clase de instrumento maestro."
+    },
+    {
+      "name": "ensemble_id",
+      "type": "integer list",
+      "description": "Filtra por ID de agrupaciones completas (coros, orquestas).",
+      "ai_utility": "Usar al buscar el protagonismo histórico de cuerpos colectivos."
+    },
+    {
+      "name": "premiere_type_id",
+      "type": "integer list",
+      "description": "Filtra por condición paramétrica de estreno documentado.",
+      "ai_utility": "Para aislar con extrema exactitud eventos que declaren estrenos mundiales o locales."
+    },
+    {
+      "name": "composer_id",
+      "type": "integer list",
+      "description": "Filtra por el ID numérico unívoco del compositor.",
+      "ai_utility": "Método preferente para consultar repertorio asociado a un creador tras resolver su ID, evitando errores de tipeo."
+    },
+    {
+      "name": "participant_id",
+      "type": "integer list",
+      "description": "Filtra por el ID numérico unívoco del participante.",
+      "ai_utility": "Método estricto y seguro para recuperar ejecuciones de un sujeto identificado sin problemas de OCR."
+    },
+    {
+      "name": "page",
+      "type": "integer",
+      "description": "Número de la página solicitada (default 1).",
+      "ai_utility": "Control de flujo y batch iterativo al tratar con grandes volúmenes de respuestas JSON."
+    },
+    {
+      "name": "per_page",
+      "type": "integer",
+      "description": "Dimensiona la entrega de resultados (default 25, max 100).",
+      "ai_utility": "Ajustar en relación estricta al tamaño permitido de la ventana de contexto del LLM."
     }
-  },
+  ],
   "response_structure": {
-    "events": "Array of event objects containing: id, name, year, location, event_type, cycle, participants (array with name and activity), program (array with piece_name, composers, premiere_type)",
-    "pagination": "Object with pagination metadata: total_events, total_pages, current_page, per_page, has_next, has_prev"
+    "events": {
+      "type": "array",
+      "description": "Lista de objetos de evento",
+      "fields": {
+        "id": "integer - ID único",
+        "name": "string - Nombre del evento",
+        "year": "integer - Año",
+        "location": "string - Ubicación format: Recinto - Dirección, Ciudad (País)",
+        "event_type": "string - Tipo de evento",
+        "cycle": "string - Ciclo/Temporada",
+        "participants": "array - [{name, activity, gender}]",
+        "program": "array - [{piece_name, composers, premiere_type}]"
+      }
+    },
+    "pagination": "Object with total_events, total_pages, current_page, per_page, has_next, has_prev"
   },
   "example_request": "GET http://basedeconciertos.uahurtado.cl/api/events?year=1985&page=1&per_page=50",
   "example_response": {
@@ -41,13 +141,14 @@
         "id": 1,
         "name": "Concierto de Bach",
         "year": 1985,
-        "location": "Teatro Municipal, Santiago (Chile)",
+        "location": "Teatro Municipal - Agustinas 794, Santiago (Chile)",
         "event_type": "Concierto",
         "cycle": "Ciclo Clásico",
         "participants": [
           {
             "name": "Juan Pérez",
-            "activity": "Pianista - Piano"
+            "activity": "Pianista - Piano",
+            "gender": "Masculino"
           }
         ],
         "program": [
@@ -68,6 +169,30 @@
       "per_page": 50,
       "has_next": true,
       "has_prev": false
+    }
+  },
+  "master_parameter_lists": {
+    "endpoint": "/status/get_params?full_content=true",
+    "structure": {
+      "id": "integer",
+      "is_validated": "boolean",
+      "name": "string"
+    },
+    "categories": [
+      { "name": "activities", "description": "List of roles/activities (e.g., 'Violinista', 'Director')." },
+      { "name": "cities", "description": "List of geographic cities where events occur." },
+      { "name": "composers", "description": "Master list of unique music composers." },
+      { "name": "cycles", "description": "Lists of official concert series or seasons." },
+      { "name": "event_types", "description": "Taxonomic classification of events (e.g., 'Concierto', 'Bingo')." },
+      { "name": "instruments", "description": "Musical instruments recognized in the database." },
+      { "name": "musical_ensembles", "description": "Named musical groups (orchestras, choirs)." },
+      { "name": "organizations", "description": "Promoting or sponsoring entities." },
+      { "name": "participants", "description": "Master list of all individual participants (interpreters, directors)." },
+      { "name": "premiere_types", "description": "Classification of premieres (e.g., 'Estreno Mundial')." }
+    ],
+    "notes": {
+      "pieces": "No master list available. Use 'piece_q' on /events for text search.",
+      "participants_vs_activities": "Participants are unique individuals, while activities are the roles they perform."
     }
   }
 }

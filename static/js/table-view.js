@@ -22,10 +22,14 @@ let state = {
         yearTo: null,
         composer: '',
         city: '',
-        participant: ''
+        participant: '',
+        piece: '',
+        activity: '',
+        gender: ''
     },
     sortColumn: null,
-    sortDirection: 'asc'
+    sortDirection: 'asc',
+    visibleColumns: {}
 };
 
 // Instancia de base de datos
@@ -34,14 +38,16 @@ let db = null;
 // Configuración de columnas por tipo de datos
 const tableConfigs = {
     events: [
-        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '20%' },
+        { key: 'name', label: 'Nombre del Evento', sortable: true, width: '18%' },
         { key: 'date', label: 'Fecha', sortable: true, width: '10%' },
-        { key: 'event_type', label: 'Tipo', sortable: true, width: '12%' },
-        { key: 'location', label: 'Ubicación', sortable: true, width: '18%' },
-        { key: 'cycle', label: 'Ciclo', sortable: true, width: '12%' },
-        { key: 'participants_count', label: 'Participantes', sortable: true, width: '8%' },
-        { key: 'genders', label: 'Géneros', sortable: false, width: '12%' },
-        { key: 'actions', label: 'Acciones', sortable: false, width: '8%' }
+        { key: 'event_type', label: 'Tipo', sortable: true, width: '10%' },
+        { key: 'venue', label: 'Lugar', sortable: true, width: '10%' },
+        { key: 'city', label: 'Ciudad', sortable: true, width: '10%' },
+        { key: 'cycle', label: 'Ciclo', sortable: true, width: '10%' },
+        { key: 'program_summary', label: 'Programa', sortable: true, width: '15%' },
+        { key: 'participants_count', label: 'Part.', sortable: true, width: '5%' },
+        { key: 'genders', label: 'Géneros', sortable: false, width: '10%' },
+        { key: 'actions', label: 'Acciones', sortable: false, width: '7%' }
     ],
     participants: [
         { key: 'name', label: 'Nombre', sortable: true, width: '30%' },
@@ -73,9 +79,17 @@ const tableConfigs = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inicializando vista de tabla...');
+    Object.keys(tableConfigs).forEach(tab => {
+        if (tab === 'events') {
+            state.visibleColumns[tab] = ['name', 'date', 'event_type', 'venue', 'city', 'participants_count', 'actions'];
+        } else {
+            state.visibleColumns[tab] = tableConfigs[tab].map(col => col.key);
+        }
+    });
     await initDB();
     setupEventListeners();
     await loadData();
+    renderColumnManager();
     renderCategoryFilters();
     renderTable();
 });
@@ -145,6 +159,22 @@ function setupEventListeners() {
 
     document.getElementById('participant-filter').addEventListener('change', (e) => {
         state.filters.participant = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('piece-filter').addEventListener('change', (e) => {
+        state.filters.piece = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('activity-filter').addEventListener('change', (e) => {
+        state.filters.activity = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('gender-filter').addEventListener('change', (e) => {
+        state.filters.gender = e.target.value;
+        applyFilters();
     });
 }
 
@@ -270,6 +300,18 @@ async function loadDataFromAPI(silent = false) {
 function processData(data) {
     console.log('Procesando datos...');
 
+    // Función auxiliar para limpiar nombres duplicados (ej: "Nombre - Nombre" -> "Nombre")
+    function cleanDuplicateName(name) {
+        if (!name) return name;
+        if (name.includes(' - ')) {
+            const parts = name.split(' - ');
+            if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+                return parts[0].trim();
+            }
+        }
+        return name;
+    }
+
     // Procesar eventos - ACCESO CORRECTO A LOS DATOS
     state.allData.events = (data.events || []).map(event => {
         // Extraer géneros únicos de participantes
@@ -287,6 +329,19 @@ function processData(data) {
             }
         }
 
+        // Separar location en venue y city
+        let venueName = 'N/A';
+        let cityName = 'N/A';
+        if (event.location && event.location !== 'N/A') {
+            if (event.location.includes(',')) {
+                const parts = event.location.split(',');
+                venueName = cleanDuplicateName(parts[0].trim());
+                cityName = cleanDuplicateName(extractCityName(event.location) || parts[1].trim());
+            } else {
+                venueName = cleanDuplicateName(event.location);
+            }
+        }
+
         return {
             ...event,
             participants_count: (event.participants || []).length,
@@ -295,7 +350,9 @@ function processData(data) {
             year: yearVal || 'N/A',
             cycle: event.cycle || 'Ninguno',
             event_type: event.event_type || 'N/A',
-            location: event.location || 'N/A'
+            venue: venueName,
+            city: cityName,
+            program_summary: (event.program || []).map(p => p.piece_name).join(', ') || 'N/A'
         };
     });
 
@@ -380,18 +437,7 @@ function processData(data) {
     });
     state.allData.cities = Array.from(citiesMap.values());
 
-    // Función auxiliar para limpiar nombres duplicados (ej: "Nombre - Nombre" -> "Nombre")
-    function cleanDuplicateName(name) {
-        if (!name) return name;
-        // Verificar si tiene formato "Algo - Algo" donde ambas partes son iguales
-        if (name.includes(' - ')) {
-            const parts = name.split(' - ');
-            if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
-                return parts[0].trim();
-            }
-        }
-        return name;
-    }
+    // Función auxiliar extraida a nivel superior en processData()
 
     // Extraer lugares/venues únicos
     const locationsMap = new Map();
@@ -471,30 +517,60 @@ function populateFilterLists(params) {
     const composersList = document.getElementById('composers-list');
     const citiesList = document.getElementById('cities-list');
     const participantsList = document.getElementById('participants-list');
+    const piecesList = document.getElementById('pieces-list');
+    const activitiesList = document.getElementById('activities-list');
 
-    composersList.innerHTML = '';
-    citiesList.innerHTML = '';
-    participantsList.innerHTML = '';
+    if (composersList) composersList.innerHTML = '';
+    if (citiesList) citiesList.innerHTML = '';
+    if (participantsList) participantsList.innerHTML = '';
+    if (piecesList) piecesList.innerHTML = '';
+    if (activitiesList) activitiesList.innerHTML = '';
 
-    // Compositores
-    state.allData.composers.forEach(c => {
-        const option = document.createElement('option');
-        option.value = c.name;
-        composersList.appendChild(option);
+    // Intentar obtener datos más completos de la API si están disponibles en params
+    const composers = params.composers || state.allData.composers;
+    const cities = params.cities || state.allData.cities;
+    const participants = params.participants || state.allData.participants;
+    const activities = params.activities || [];
+    
+    // Las obras (pieces) no suelen estar en params, se sacan de state
+    const piecesMap = new Map();
+    state.allData.events.forEach(event => {
+        (event.program || []).forEach(p => {
+            if (p.piece_name && !piecesMap.has(p.piece_name)) {
+                piecesMap.set(p.piece_name, true);
+            }
+        });
     });
 
-    // Ciudades
-    state.allData.cities.forEach(city => {
+    // Llenar listas
+    composers.forEach(c => {
         const option = document.createElement('option');
-        option.value = city.name;
-        citiesList.appendChild(option);
+        option.value = typeof c === 'string' ? c : c.name;
+        if (composersList) composersList.appendChild(option);
     });
 
-    // Participantes
-    state.allData.participants.forEach(p => {
+    cities.forEach(city => {
         const option = document.createElement('option');
-        option.value = p.name;
-        participantsList.appendChild(option);
+        option.value = typeof city === 'string' ? city : city.name;
+        if (citiesList) citiesList.appendChild(option);
+    });
+
+    participants.forEach(p => {
+        const option = document.createElement('option');
+        option.value = typeof p === 'string' ? p : p.name;
+        if (participantsList) participantsList.appendChild(option);
+    });
+
+    piecesMap.forEach((_, name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        if (piecesList) piecesList.appendChild(option);
+    });
+
+    activities.forEach(a => {
+        const option = document.createElement('option');
+        option.value = typeof a === 'string' ? a : a.name;
+        if (activitiesList) activitiesList.appendChild(option);
     });
 }
 
@@ -551,11 +627,14 @@ function applyFilters() {
     };
 
     state.filteredData = currentData.filter(item => {
-        // Filtro de búsqueda (aplica a todas las pestañas)
         if (state.filters.search) {
             const searchLower = state.filters.search.toLowerCase();
             const searchFields = Object.values(item).filter(v => typeof v === 'string' || typeof v === 'number').join(' ').toLowerCase();
-            if (!searchFields.includes(searchLower)) return false;
+            
+            // Si el objeto actual no contiene la string (quizás porque searchFields omitió algo anidado),
+            // hacemos un chequeo exhaustivo en venue y city también en caso de array objects
+            const combinedSearch = searchFields + ' ' + (item.venue || '') + ' ' + (item.city || '');
+            if (!combinedSearch.toLowerCase().includes(searchLower)) return false;
         }
 
         // Filtros específicos de eventos
@@ -593,8 +672,8 @@ function applyFilters() {
 
             // Filtro de ciudad
             if (state.filters.city) {
-                const city = extractCityName(item.location);
-                if (!city || !city.toLowerCase().includes(state.filters.city.toLowerCase())) {
+                // Now item.city is natively populated in processData
+                if (!item.city || !item.city.toLowerCase().includes(state.filters.city.toLowerCase())) {
                     return false;
                 }
             }
@@ -611,6 +690,30 @@ function applyFilters() {
             if (state.filters.participant) {
                 const participants = (item.participants || []).map(p => p.name);
                 if (!participants.some(p => p.toLowerCase().includes(state.filters.participant.toLowerCase()))) {
+                    return false;
+                }
+            }
+
+            // Filtro de obra / pieza
+            if (state.filters.piece) {
+                const pieces = (item.program || []).map(p => p.piece_name || '');
+                if (!pieces.some(p => p.toLowerCase().includes(state.filters.piece.toLowerCase()))) {
+                    return false;
+                }
+            }
+
+            // Filtro de actividad / rol
+            if (state.filters.activity) {
+                const activities = (item.participants || []).map(p => p.activity || '');
+                if (!activities.some(a => a.toLowerCase().includes(state.filters.activity.toLowerCase()))) {
+                    return false;
+                }
+            }
+
+            // Filtro de género
+            if (state.filters.gender) {
+                const genders = (item.participants || []).map(p => p.gender || '');
+                if (!genders.some(g => g.toLowerCase() === state.filters.gender.toLowerCase())) {
                     return false;
                 }
             }
@@ -680,15 +783,19 @@ function switchTab(tab) {
     document.getElementById('city-filter').value = '';
     document.getElementById('participant-filter').value = '';
 
+    renderColumnManager();
     applyFilters();
 }
 
 function renderTable() {
     const config = tableConfigs[state.currentTab];
+    const visibleKeys = state.visibleColumns[state.currentTab] || config.map(c => c.key);
+    const visibleConfig = config.filter(col => visibleKeys.includes(col.key));
+
     const headers = document.getElementById('table-headers');
     const tbody = document.getElementById('table-body');
 
-    headers.innerHTML = config.map(col => `
+    headers.innerHTML = visibleConfig.map(col => `
         <th style="width: ${col.width}" ${col.sortable ? `onclick="sortBy('${col.key}')"` : ''} class="${col.sortable ? 'sortable' : ''}">
             ${col.label}
             ${col.sortable ? '<i class="fas fa-sort sort-icon"></i>' : ''}
@@ -700,7 +807,7 @@ function renderTable() {
     const pageData = state.filteredData.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageData.map((item, index) => {
-        const cells = config.map(col => {
+        const cells = visibleConfig.map(col => {
             if (col.key === 'actions') {
                 return `<td>${renderActions(item, startIndex + index)}</td>`;
             }
@@ -993,15 +1100,21 @@ function clearAllFilters() {
         yearTo: null,
         composer: '',
         city: '',
-        participant: ''
+        participant: '',
+        piece: '',
+        activity: '',
+        gender: ''
     };
 
-    document.getElementById('search-input').value = '';
-    document.getElementById('year-from').value = '';
-    document.getElementById('year-to').value = '';
-    document.getElementById('composer-filter').value = '';
-    document.getElementById('city-filter').value = '';
-    document.getElementById('participant-filter').value = '';
+    if (document.getElementById('search-input')) document.getElementById('search-input').value = '';
+    if (document.getElementById('year-from')) document.getElementById('year-from').value = '';
+    if (document.getElementById('year-to')) document.getElementById('year-to').value = '';
+    if (document.getElementById('composer-filter')) document.getElementById('composer-filter').value = '';
+    if (document.getElementById('city-filter')) document.getElementById('city-filter').value = '';
+    if (document.getElementById('participant-filter')) document.getElementById('participant-filter').value = '';
+    if (document.getElementById('piece-filter')) document.getElementById('piece-filter').value = '';
+    if (document.getElementById('activity-filter')) document.getElementById('activity-filter').value = '';
+    if (document.getElementById('gender-filter')) document.getElementById('gender-filter').value = '';
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -1051,6 +1164,61 @@ async function refreshData() {
         showError('Error al refrescar datos: ' + error.message);
     }
 }
+
+// ==================== GESTIÓN DE COLUMNAS ====================
+
+function renderColumnManager() {
+    const container = document.getElementById('column-selector-list');
+    if (!container) return;
+    
+    const config = tableConfigs[state.currentTab];
+    const visibleKeys = state.visibleColumns[state.currentTab] || config.map(c => c.key);
+    
+    container.innerHTML = config.map(col => `
+        <label class="dropdown-item">
+            <input type="checkbox" ${visibleKeys.includes(col.key) ? 'checked' : ''} 
+                   onchange="toggleColumn('${col.key}')" 
+                   ${col.key === 'name' || col.key === 'actions' ? 'disabled' : ''}>
+            <span>${col.label}</span>
+        </label>
+    `).join('');
+}
+
+function toggleColumn(columnKey) {
+    const visibleKeys = state.visibleColumns[state.currentTab];
+    const index = visibleKeys.indexOf(columnKey);
+    
+    if (index > -1) {
+        if (visibleKeys.length > 2) {
+            visibleKeys.splice(index, 1);
+        } else {
+            renderColumnManager();
+            return;
+        }
+    } else {
+        const config = tableConfigs[state.currentTab];
+        const newKeys = [...visibleKeys, columnKey];
+        state.visibleColumns[state.currentTab] = config
+            .map(c => c.key)
+            .filter(k => newKeys.includes(k));
+    }
+    
+    renderTable();
+}
+
+function toggleColumnSelector() {
+    const dropdown = document.getElementById('column-selector-dropdown');
+    if (dropdown) dropdown.classList.toggle('show');
+}
+
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('column-selector-dropdown');
+    const btn = document.getElementById('column-selector-btn');
+    if (dropdown && dropdown.classList.contains('show') && 
+        btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.classList.remove('show');
+    }
+});
 
 // ==================== UI FEEDBACK ====================
 
@@ -1110,3 +1278,5 @@ window.changePage = changePage;
 window.changePerPage = changePerPage;
 window.exportData = exportData;
 window.refreshData = refreshData;
+window.toggleColumn = toggleColumn;
+window.toggleColumnSelector = toggleColumnSelector;

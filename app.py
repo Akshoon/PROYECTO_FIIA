@@ -303,9 +303,13 @@ def get_all_filter_values():
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         
         # Obtener parámetros base
-        params_response = requests.get(f"{PARAMS_URL}?full_content=true", headers=headers, timeout=120)
-        params_response.raise_for_status()
-        params_data = params_response.json()
+        params_data = {}
+        try:
+            params_response = requests.get(f"{PARAMS_URL}?full_content=true", headers=headers, timeout=10)
+            params_response.raise_for_status()
+            params_data = params_response.json()
+        except requests.RequestException as e:
+            print(f"Warning: Could not fetch filter params from external API: {e}. Will rely on event extraction.")
         
         # Estructura para almacenar todos los valores
         all_values = {

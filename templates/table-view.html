@@ -101,13 +101,29 @@
                             list="composers-list">
                         <datalist id="composers-list"></datalist>
 
-                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad"
-                            list="cities-list">
-                        <datalist id="cities-list"></datalist>
+                        <input type="text" class="filter-input" id="piece-filter" placeholder="Obra / Pieza"
+                            list="pieces-list">
+                        <datalist id="pieces-list"></datalist>
 
                         <input type="text" class="filter-input" id="participant-filter" placeholder="Participante"
                             list="participants-list">
                         <datalist id="participants-list"></datalist>
+
+                        <input type="text" class="filter-input" id="activity-filter" placeholder="Actividad / Rol"
+                            list="activities-list">
+                        <datalist id="activities-list"></datalist>
+
+                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad"
+                            list="cities-list">
+                        <datalist id="cities-list"></datalist>
+
+                        <select class="filter-input" id="gender-filter">
+                            <option value="">Género (Todos)</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="No binario">No binario</option>
+                            <option value="Otro">Otro</option>
+                        </select>
                     </div>
                 </div>
 
@@ -127,6 +143,17 @@
                         </div>
                     </div>
                     <div class="toolbar-right">
+                        <div class="column-selector-container">
+                            <button class="icon-btn" id="column-selector-btn" onclick="toggleColumnSelector()" title="Gestionar columnas">
+                                <i class="fas fa-columns"></i>
+                            </button>
+                            <div class="column-selector-dropdown" id="column-selector-dropdown">
+                                <h4>Columnas Visibles</h4>
+                                <div id="column-selector-list">
+                                    <!-- Se llena dinámicamente -->
+                                </div>
+                            </div>
+                        </div>
                         <div class="per-page-selector">
                             <label>Mostrar:</label>
                             <select id="per-page-select" onchange="changePerPage()">
