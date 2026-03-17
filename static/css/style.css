@@ -585,12 +585,19 @@ a {
 }
 
 /* Filters Layout Improvements */
+.filter-inputs-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
 .filter-group {
     display: flex;
     align-items: center;
     gap: 8px;
     padding-right: 15px;
-    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .filter-group:last-of-type {
@@ -904,34 +911,80 @@ a {
         font-size: 0.8rem;
     }
 
-    /* Filters Bar - scroll horizontal */
+    /* Filters Bar - stacked for mobile */
     .filters-bar {
         top: 44px;
         padding: 8px 10px;
-        gap: 6px;
+        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-inputs-wrapper {
+        display: flex;
+        flex-direction: row;
+        align-items: center; /* Alinea etiquetas e inputs verticalmente al centro */
+        justify-content: flex-start;
+        gap: 16px;
+        width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        flex-wrap: nowrap;
+        padding-bottom: 4px; /* Espacio para scrollbar si aparece */
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        flex: 0 0 auto; /* Mantener tamano natural */
+        gap: 6px;
+        padding-right: 0;
+        border-right: none;
+    }
+
+    .filter-group.options-group {
+        flex: 0 0 auto;
+    }
+
+    .year-range {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
     }
 
     .filter-input,
     .filter-select {
-        min-width: 80px;
-        max-width: 100px;
+        min-width: 90px;
+        max-width: 120px;
         padding: 6px 8px;
-        font-size: 0.75rem;
-        flex-shrink: 0;
+        font-size: 0.85rem;
+    }
+
+    .group-label {
+        font-size: 0.65rem;
+        margin-bottom: 0;
+        margin-right: 2px;
+        white-space: nowrap;
+    }
+
+    .filter-actions {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        flex-wrap: wrap; /* En pantallas muy chicas permite que sigan bajando los botones */
     }
 
     .filter-btn {
-        padding: 6px 10px;
-        font-size: 0.75rem;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        flex: 1 1 auto;
         white-space: nowrap;
-        flex-shrink: 0;
     }
 
     .graph-container {
-        top: 100px;
+        top: 140px; /* Ajustado para dar espacio a input + botones */
     }
 
     .legend-panel,

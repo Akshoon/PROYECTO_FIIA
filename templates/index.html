@@ -156,34 +156,33 @@
         <div class="filters-bar">
 
 
-            <div class="filter-group">
-                <span class="group-label">Búsqueda</span>
-                <input type="text" id="global-search" class="filter-input" placeholder="Buscar...">
-            </div>
+            <!-- Contenedor superior para búsqueda y año -->
+            <div class="filter-inputs-wrapper">
+                <div class="filter-group">
+                    <span class="group-label">Búsqueda</span>
+                    <input type="text" id="global-search" class="filter-input" placeholder="Buscar...">
+                </div>
 
-            <div class="filter-group">
-                <span class="group-label">Año</span>
-                <div class="year-range">
-                    <input type="number" id="year-from" class="filter-input small" placeholder="Desde" min="1945"
-                        max="2023">
-                    <span>-</span>
-                    <input type="number" id="year-to" class="filter-input small" placeholder="Hasta" min="1945"
-                        max="2023">
+                <div class="filter-group">
+                    <span class="group-label">Año</span>
+                    <div class="year-range">
+                        <input type="number" id="year-from" class="filter-input small" placeholder="Desde" min="1945"
+                            max="2023">
+                        <span>-</span>
+                        <input type="number" id="year-to" class="filter-input small" placeholder="Hasta" min="1945"
+                            max="2023">
+                    </div>
+                </div>
+                
+                <div class="filter-group secondary-filters" id="secondary-filters" style="display: none;">
+                    <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
+                    <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
+                    <input type="text" id="location-search" class="filter-input" placeholder="Ubicación...">
                 </div>
             </div>
 
-            <div class="filter-group">
-                <button id="toggle-advanced" class="filter-btn filter-btn-secondary"
-                    title="Más filtros">Opciones</button>
-            </div>
-
-            <div class="filter-group secondary-filters" id="secondary-filters" style="display: none;">
-                <input type="text" id="composer-search" class="filter-input" placeholder="Compositor...">
-                <input type="text" id="participant-search" class="filter-input" placeholder="Participante...">
-                <input type="text" id="location-search" class="filter-input" placeholder="Ubicación...">
-            </div>
-
             <div class="filter-actions">
+                <button id="toggle-advanced" class="filter-btn filter-btn-secondary" title="Más filtros">Opciones</button>
                 <button id="load-btn" class="filter-btn filter-btn-primary">Aplicar Filtros</button>
                 <button id="clear-btn" class="filter-btn filter-btn-secondary">Limpiar</button>
             </div>
