@@ -282,6 +282,7 @@
             locationSearch: document.getElementById('location-search'),
             loadBtn: document.getElementById('load-btn'),
             clearBtn: document.getElementById('clear-btn'),
+            loadAllBtn: document.getElementById('load-all-btn'),
             clearCacheBtn: document.getElementById('clear-cache-btn'),
             graphSearchInput: document.getElementById('graph-search-input'),
             nodeSidebar: document.getElementById('node-sidebar'),
@@ -583,7 +584,9 @@
                 showMessage('Cargando datos para mostrar el elemento seleccionado...');
                 handleMonthlyClick();
             } else {
-                showMessage('Bienvenido! Haga clic en Aplicar Filtros para comenzar a explorar los datos.');
+                console.log('Auto-loading all data on startup as requested');
+                showMessage('Cargando todos los datos automáticamente...');
+                handleMonthlyClick();
             }
         }
     }
@@ -644,6 +647,9 @@
         if (elements.clearBtn) {
             elements.clearBtn.addEventListener('click', handleClearClick);
         }
+        if (elements.loadAllBtn) {
+            elements.loadAllBtn.addEventListener('click', handleMonthlyClick);
+        }
         if (elements.clearCacheBtn) {
             elements.clearCacheBtn.addEventListener('click', handleClearCacheClick);
         }
@@ -657,7 +663,7 @@
             toggleBtn.addEventListener('click', () => {
                 const isHidden = secondaryFilters.style.display === 'none';
                 secondaryFilters.style.display = isHidden ? 'flex' : 'none';
-                toggleBtn.innerText = isHidden ? 'Ocultar' : 'Config';
+                toggleBtn.innerText = isHidden ? 'Ocultar' : 'Opciones';
                 toggleBtn.title = isHidden ? 'Ocultar filtros' : 'Más filtros';
             });
         }
