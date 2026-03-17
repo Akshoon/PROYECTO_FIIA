@@ -416,7 +416,7 @@ a {
 }
 
 .nav-btn:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     color: var(--uah-white);
 }
 
@@ -840,8 +840,8 @@ a {
     }
 
     .logo-icon {
-        width: 32px;
-        height: 32px;
+        height: 36px;
+        width: auto;
     }
 
     .logo-text {
@@ -885,6 +885,14 @@ a {
     /* App Header */
     .app-header {
         padding: 8px 12px;
+    }
+
+    .nav-btn {
+        padding: 0.4rem 0.6rem;
+    }
+
+    .nav-btn span {
+        display: none; /* Oculta el texto en movil */
     }
 
     .app-logo {
@@ -1188,8 +1196,8 @@ a {
 
 .node-sidebar-header {
     padding: 20px;
-    background: #C54B00;
-    /* UAH Orange */
+    background: #000000;
+    /* Black */
     color: white;
     display: flex;
     justify-content: space-between;
@@ -1265,12 +1273,12 @@ a {
 }
 
 .sidebar-btn-primary {
-    background: #C54B00;
+    background: #000000;
     color: white;
 }
 
 .sidebar-btn-primary:hover {
-    background: #e65c00;
+    background: #333333;
 }
 
 .sidebar-btn-secondary {
@@ -1298,6 +1306,29 @@ a {
     background: rgba(0, 0, 0, 0.03);
     border-radius: 6px;
     padding: 8px;
+}
+
+.list-item {
+    font-size: 0.85rem;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list-item small {
+    color: #666;
+}
+
+.list-item-mini {
+    display: inline-block;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin: 2px;
 }
 
 .list-item {
