@@ -13,6 +13,7 @@
     <script
         src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/dist/graphology-layout-forceatlas2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sigma@2.4.0/build/sigma.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
@@ -21,8 +22,7 @@
         <header class="header">
             <div class="header-content">
                 <div class="logo" onclick="showLanding()">
-                    <img src="{{ url_for('static', filename='img/logoUAH.png') }}" alt="UAH" class="logo-icon">
-                    <div class="logo-text">Base de Conciertos <span>Chile</span></div>
+                    <img src="{{ url_for('static', filename='img/logo_UAH_blank.png') }}" alt="UAH" class="logo-icon">
                 </div>
                 <nav class="nav-links">
                     <a href="#features">Caracteristicas</a>
@@ -49,15 +49,15 @@
         <section class="stats-section">
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-number">10,000+</div>
+                    <div class="stat-number">6,000+</div>
                     <div class="stat-label">Eventos</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">1945-1995</div>
+                    <div class="stat-number">1850-2023</div>
                     <div class="stat-label">Periodo</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">500+</div>
+                    <div class="stat-number">400+</div>
                     <div class="stat-label">Compositores</div>
                 </div>
                 <div class="stat-card">
@@ -113,18 +113,18 @@
                     <p>Entidades conectadas en nuestra base de datos</p>
                 </div>
                 <div class="type-list">
-                    <div class="type-badge"><span class="type-dot" style="background: #FF6B6B;"></span>Eventos</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #4ECDC4;"></span>Obras</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #FFE66D;"></span>Compositores
+                    <div class="type-badge"><span class="type-dot" style="background: #e54d24;"></span>Eventos</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #2563eb;"></span>Obras</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #10b981;"></span>Compositores
                     </div>
-                    <div class="type-badge"><span class="type-dot" style="background: #95E1D3;"></span>Participantes
+                    <div class="type-badge"><span class="type-dot" style="background: #8b5cf6;"></span>Participantes
                     </div>
-                    <div class="type-badge"><span class="type-dot" style="background: #A8E6CF;"></span>Ubicaciones</div>
-                    <div class="type-badge"><span class="type-dot" style="background: #FF8B94;"></span>Instrumentos
+                    <div class="type-badge"><span class="type-dot" style="background: #f59e0b;"></span>Ubicaciones</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #ec4899;"></span>Instrumentos
                     </div>
-                    <div class="type-badge"><span class="type-dot" style="background: #8B7FFF;"></span>Tipos de Evento
+                    <div class="type-badge"><span class="type-dot" style="background: #06b6d4;"></span>Tipos de Evento
                     </div>
-                    <div class="type-badge"><span class="type-dot" style="background: #1abc9c;"></span>Ciclos</div>
+                    <div class="type-badge"><span class="type-dot" style="background: #6366f1;"></span>Ciclos</div>
                 </div>
             </div>
         </section>
@@ -138,12 +138,19 @@
     <!-- APP PAGE -->
     <div class="app-page" id="app-page">
         <header class="app-header">
-            <div class="app-logo" onclick="showLanding()">
-                <img src="{{ url_for('static', filename='img/logoUAH.png') }}" alt="UAH"
-                    style="height: 32px; width: auto;">
-                <span style="margin-left: 10px;">Base de Conciertos</span>
+            <div class="header-content">
+                <div class="logo" onclick="showLanding()">
+                    <img src="{{ url_for('static', filename='img/logo_UAH_blank.png') }}" alt="UAH" class="logo-icon">
+                </div>
+                <nav class="header-nav">
+                    <button class="nav-btn active">
+                        <i class="fas fa-project-diagram"></i> Vista de Grafo
+                    </button>
+                    <button class="nav-btn" onclick="window.location.href='/table'">
+                        <i class="fas fa-table"></i> Vista de Tabla
+                    </button>
+                </nav>
             </div>
-            <a href="#" onclick="showLanding(); return false;" class="back-btn">Volver al Inicio</a>
         </header>
 
         <div class="filters-bar">
@@ -190,20 +197,19 @@
             <div class="legend-panel">
                 <div class="legend-title">Visualizar Nodos</div>
                 <div class="legend-item" data-type="event"><input type="checkbox" checked> <span class="legend-color"
-                        style="background: #FF6B6B"></span><span>Eventos</span></div>
+                        style="background: #e54d24"></span><span>Eventos</span></div>
                 <div class="legend-item" data-type="piece"><input type="checkbox" checked> <span class="legend-color"
-                        style="background: #4ECDC4"></span><span>Obras</span></div>
+                        style="background: #2563eb"></span><span>Obras</span></div>
                 <div class="legend-item" data-type="composer"><input type="checkbox" checked> <span class="legend-color"
-                        style="background: #FFE66D"></span><span>Compositores</span></div>
+                        style="background: #10b981"></span><span>Compositores</span></div>
                 <div class="legend-item" data-type="participant"><input type="checkbox" checked> <span
-                        class="legend-color" style="background: #95E1D3"></span><span>Participantes</span></div>
+                        class="legend-color" style="background: #8b5cf6"></span><span>Participantes</span></div>
                 <div class="legend-item" data-type="city"><input type="checkbox" checked> <span class="legend-color"
-                        style="background: #A8E6CF"></span><span>Ciudades</span></div>
+                        style="background: #f59e0b"></span><span>Ciudades</span></div>
                 <div class="legend-item" data-type="instrument"><input type="checkbox" checked> <span
-                        class="legend-color" style="background: #FF8B94"></span><span>Instrumentos</span></div>
+                        class="legend-color" style="background: #ec4899"></span><span>Instrumentos</span></div>
                 <div class="legend-item" data-type="event_type"><input type="checkbox" checked> <span
-                        class="legend-color" style="background: #8B7FFF"></span><span>Tipos de
-                        Evento</span></div>
+                        class="legend-color" style="background: #06b6d4"></span><span>Tipos de Evento</span></div>
             </div>
 
             <div class="zoom-controls">

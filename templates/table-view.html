@@ -16,14 +16,10 @@
     <header class="main-header">
         <div class="header-content">
             <div class="logo" onclick="window.location.href='/'">
-                <img src="{{ url_for('static', filename='img/logoUAH.png') }}" alt="UAH" class="logo-icon">
-                <div class="logo-text">
-                    <span class="logo-title">Base de Conciertos</span>
-                    <span class="logo-subtitle">Vista de Tabla</span>
-                </div>
+                <img src="{{ url_for('static', filename='img/logo_UAH_blank.png') }}" alt="UAH" class="logo-icon">
             </div>
             <nav class="header-nav">
-                <button class="nav-btn" onclick="window.location.href='/'">
+                <button class="nav-btn" onclick="window.location.href='/#app'">
                     <i class="fas fa-project-diagram"></i> Vista de Grafo
                 </button>
                 <button class="nav-btn active">
@@ -144,7 +140,8 @@
                     </div>
                     <div class="toolbar-right">
                         <div class="column-selector-container">
-                            <button class="icon-btn" id="column-selector-btn" onclick="toggleColumnSelector()" title="Gestionar columnas">
+                            <button class="icon-btn" id="column-selector-btn" onclick="toggleColumnSelector()"
+                                title="Gestionar columnas">
                                 <i class="fas fa-columns"></i>
                             </button>
                             <div class="column-selector-dropdown" id="column-selector-dropdown">

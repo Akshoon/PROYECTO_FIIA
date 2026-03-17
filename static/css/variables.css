@@ -5,9 +5,9 @@
 
 :root {
     /* UAH Brand Colors */
-    --uah-orange: #C54B00;
-    --uah-orange-dark: #A53D00;
-    --uah-orange-light: #E05A00;
+    --uah-orange: #e54d24; /* El rojo anaranjado oficial de UAH */
+    --uah-orange-dark: #c43c18;
+    --uah-orange-light: #ff6a42;
 
     /* Secondary Colors */
     --uah-blue: #3b82f6;
@@ -15,11 +15,11 @@
 
     /* Neutral Colors - Light Theme */
     --uah-white: #ffffff;
-    --uah-gray-lightest: #f9fafb;
+    --uah-gray-lightest: #fdfdfd; 
     --uah-gray-light: #f5f5f5;
     --uah-gray: #6b7280;
     --uah-gray-dark: #374151;
-    --uah-black: #1a1a1a;
+    --uah-black: #000000; /* Cabeceras negras */
     --uah-border: #e1e4e8;
 
     /* Dark Theme Colors (for graph view) */

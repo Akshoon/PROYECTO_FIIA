@@ -1187,22 +1187,22 @@
     }
 
     function getNodeColor(type) {
-        // ✨ PALETA MEJORADA: Colores vibrantes y diferenciadores
+        // ✨ PALETA MEJORADA: Colores vibrantes, diferenciadores y de alto contraste
         const colors = {
-            'event': '#FF6B6B',      // Rojo vibrante - Eventos
-            'piece': '#4ECDC4',      // Turquesa - Piezas musicales
-            'composer': '#FFE66D',      // Amarillo dorado - Compositores
-            'participant': '#95E1D3',      // Verde menta - Participantes
-            'city': '#A8E6CF',      // Verde claro - Ciudades
-            'instrument': '#FF8B94',      // Rosa coral - Instrumentos
-            'event_type': '#8B7FFF',      // Púrpura - Tipos de evento
-            'cycle': '#00D4FF',      // Azul cielo - Ciclos
-            'premiere_type': '#FFB84D',      // Naranja - Tipo de estreno
-            'location': '#A8E6CF',      // Verde - Ubicaciones
-            'activity': '#FF6B9D',      // Magenta - Actividades
-            'gender': '#6BCB77',      // Verde - Género
-            'person': '#95E1D3',      // Verde menta - Personas
-            'unknown': '#CCCCCC'       // Gris - Desconocido
+            'event': '#e54d24',      // Rojo UAH - Eventos
+            'piece': '#2563eb',      // Azul fuerte - Piezas musicales
+            'composer': '#10b981',   // Verde esmeralda - Compositores
+            'participant': '#8b5cf6',// Púrpura vibrante - Participantes
+            'city': '#f59e0b',       // Ámbar/Dorado - Ciudades/Ubicaciones
+            'instrument': '#ec4899', // Rosa fuerte - Instrumentos
+            'event_type': '#06b6d4', // Cian - Tipos de evento
+            'cycle': '#6366f1',      // Índigo - Ciclos
+            'premiere_type': '#d946ef', // Fucsia - Tipo de estreno
+            'location': '#f59e0b',   // Ámbar - Ubicaciones
+            'activity': '#84cc16',   // Verde lima - Actividades
+            'gender': '#14b8a6',     // Teal - Género
+            'person': '#8b5cf6',     // Púrpura - Personas
+            'unknown': '#9ca3af'     // Gris - Desconocido
         };
 
         return colors[type] || colors['unknown'];

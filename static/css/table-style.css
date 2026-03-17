@@ -75,8 +75,8 @@ body.table-view-page {
 
 /* ============ HEADER ============ */
 .main-header {
-    background: #ffffff;
-    border-bottom: 1px solid #e1e4e8;
+    background: var(--uah-black);
+    border-bottom: 1px solid var(--uah-black);
     padding: 0.75rem 2rem;
     position: sticky;
     top: 0;
@@ -105,8 +105,8 @@ body.table-view-page {
 }
 
 .logo-icon {
-    width: 36px;
-    height: 36px;
+    width: auto;
+    height: 60px;
     object-fit: contain;
     border-radius: 0;
 }
@@ -119,12 +119,12 @@ body.table-view-page {
 .logo-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--uah-white);
 }
 
 .logo-subtitle {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .header-nav {
@@ -134,9 +134,9 @@ body.table-view-page {
 
 .nav-btn {
     padding: 0.5rem 1rem;
-    border: 1px solid #e1e4e8;
-    background: #ffffff;
-    color: #6b7280;
+    border: 1px solid transparent; /* Quitar borde gris */
+    background: transparent; /* Fondo transparente */
+    color: var(--uah-white); /* Texto blanco */
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.875rem;
@@ -148,13 +148,13 @@ body.table-view-page {
 }
 
 .nav-btn:hover {
-    background: #f9fafb;
-    color: #1a1a1a;
+    background: rgba(255,255,255,0.1);
+    color: var(--uah-white);
 }
 
 .nav-btn.active {
-    background: var(--uah-orange);
-    color: #ffffff;
+    background: transparent;
+    color: var(--uah-orange);
     border-color: var(--uah-orange);
 }
 
@@ -324,9 +324,9 @@ body.table-view-page {
 .apply-filters-btn {
     width: 100%;
     padding: 0.75rem;
-    border: none;
-    background: var(--uah-orange);
-    color: #ffffff;
+    border: 1px solid var(--uah-orange);
+    background: transparent;
+    color: var(--uah-orange);
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.875rem;
@@ -340,9 +340,9 @@ body.table-view-page {
 }
 
 .apply-filters-btn:hover {
-    background: var(--uah-orange-dark);
+    background: var(--uah-orange);
+    color: var(--uah-white);
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(197, 75, 0, 0.3);
 }
 
 /* ============ MAIN CONTENT ============ */
@@ -503,7 +503,7 @@ body.table-view-page {
 .data-table thead {
     position: sticky;
     top: 0;
-    background: #f9fafb;
+    background: #ffffff;
     z-index: 10;
 }
 
@@ -544,7 +544,7 @@ body.table-view-page {
 }
 
 .data-table tbody tr:hover {
-    background: #f9fafb;
+    background: #fdfdfd;
 }
 
 .text-muted {
