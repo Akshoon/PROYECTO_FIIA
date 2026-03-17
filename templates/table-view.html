@@ -89,30 +89,26 @@
                     </div>
                 </div>
 
-                <!-- Advanced Filters -->
+                <!-- Advanced Filters Section -->
                 <div class="filter-section">
-                    <h4>Filtros Avanzados</h4>
-                    <div class="advanced-filters">
-                        <input type="text" class="filter-input" id="composer-filter" placeholder="Compositor"
-                            list="composers-list">
-                        <datalist id="composers-list"></datalist>
+                    <button id="toggle-advanced-btn" class="secondary-btn" onclick="toggleAdvancedFilters()">
+                        <i class="fas fa-plus-circle"></i> Filtros Avanzados
+                    </button>
+                    
+                    <div id="advanced-filters-content" class="advanced-filters" style="display: none; margin-top: 15px;">
+                        <h4>Filtros Avanzados</h4>
+                        <input type="text" class="filter-input" id="composer-filter" placeholder="Compositor">
+                        
+                        <input type="text" class="filter-input" id="piece-filter" placeholder="Obra / Pieza">
+                        
+                        <input type="text" class="filter-input" id="participant-filter" placeholder="Participante">
+                        
+                        <input type="text" class="filter-input" id="activity-filter" placeholder="Actividad / Rol">
 
-                        <input type="text" class="filter-input" id="piece-filter" placeholder="Obra / Pieza"
-                            list="pieces-list">
-                        <datalist id="pieces-list"></datalist>
-
-                        <input type="text" class="filter-input" id="participant-filter" placeholder="Participante"
-                            list="participants-list">
-                        <datalist id="participants-list"></datalist>
-
-                        <input type="text" class="filter-input" id="activity-filter" placeholder="Actividad / Rol"
-                            list="activities-list">
-                        <datalist id="activities-list"></datalist>
-
-                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad"
-                            list="cities-list">
-                        <datalist id="cities-list"></datalist>
-
+                        <input type="text" class="filter-input" id="location-filter" placeholder="Lugar (Venue)">
+                        
+                        <input type="text" class="filter-input" id="city-filter" placeholder="Ciudad">
+                        
                         <select class="filter-input" id="gender-filter">
                             <option value="">Género (Todos)</option>
                             <option value="Masculino">Masculino</option>

@@ -25,7 +25,8 @@ let state = {
         participant: '',
         piece: '',
         activity: '',
-        gender: ''
+        gender: '',
+        location: ''
     },
     sortColumn: null,
     sortDirection: 'asc',
@@ -149,26 +150,33 @@ function setupEventListeners() {
     });
 
     // Filtros avanzados
-    document.getElementById('composer-filter').addEventListener('change', (e) => {
+    document.getElementById('composer-filter').addEventListener('input', (e) => {
         state.filters.composer = e.target.value;
+        applyFilters();
     });
 
-    document.getElementById('city-filter').addEventListener('change', (e) => {
+    document.getElementById('city-filter').addEventListener('input', (e) => {
         state.filters.city = e.target.value;
+        applyFilters();
     });
 
-    document.getElementById('participant-filter').addEventListener('change', (e) => {
+    document.getElementById('participant-filter').addEventListener('input', (e) => {
         state.filters.participant = e.target.value;
         applyFilters();
     });
 
-    document.getElementById('piece-filter').addEventListener('change', (e) => {
+    document.getElementById('piece-filter').addEventListener('input', (e) => {
         state.filters.piece = e.target.value;
         applyFilters();
     });
 
-    document.getElementById('activity-filter').addEventListener('change', (e) => {
+    document.getElementById('activity-filter').addEventListener('input', (e) => {
         state.filters.activity = e.target.value;
+        applyFilters();
+    });
+
+    document.getElementById('location-filter').addEventListener('input', (e) => {
+        state.filters.location = e.target.value;
         applyFilters();
     });
 
@@ -473,19 +481,22 @@ function processData(data) {
     });
     state.allData.locations = Array.from(locationsMap.values());
 
-    // Poblar filtros
-    populateFilterLists(data.params || {});
-
-    console.log('✅ Datos procesados:', {
-        events: state.allData.events.length,
-        participants: state.allData.participants.length,
-        composers: state.allData.composers.length,
-        cities: state.allData.cities.length,
-        locations: state.allData.locations.length
-    });
-
     // Iniciar con todos los datos
     applyFilters();
+}
+
+// Alternar Filtros Avanzados
+function toggleAdvancedFilters() {
+    const content = document.getElementById('advanced-filters-content');
+    const btn = document.getElementById('toggle-advanced-btn');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        btn.innerHTML = '<i class="fas fa-minus-circle"></i> Ocultar Filtros';
+    } else {
+        content.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-plus-circle"></i> Filtros Avanzados';
+    }
 }
 
 // Extraer nombre de ciudad
@@ -512,67 +523,7 @@ function extractCityName(locationStr) {
     }
 }
 
-// Poblar listas de filtros
-function populateFilterLists(params) {
-    const composersList = document.getElementById('composers-list');
-    const citiesList = document.getElementById('cities-list');
-    const participantsList = document.getElementById('participants-list');
-    const piecesList = document.getElementById('pieces-list');
-    const activitiesList = document.getElementById('activities-list');
-
-    if (composersList) composersList.innerHTML = '';
-    if (citiesList) citiesList.innerHTML = '';
-    if (participantsList) participantsList.innerHTML = '';
-    if (piecesList) piecesList.innerHTML = '';
-    if (activitiesList) activitiesList.innerHTML = '';
-
-    // Intentar obtener datos más completos de la API si están disponibles en params
-    const composers = params.composers || state.allData.composers;
-    const cities = params.cities || state.allData.cities;
-    const participants = params.participants || state.allData.participants;
-    const activities = params.activities || [];
-    
-    // Las obras (pieces) no suelen estar en params, se sacan de state
-    const piecesMap = new Map();
-    state.allData.events.forEach(event => {
-        (event.program || []).forEach(p => {
-            if (p.piece_name && !piecesMap.has(p.piece_name)) {
-                piecesMap.set(p.piece_name, true);
-            }
-        });
-    });
-
-    // Llenar listas
-    composers.forEach(c => {
-        const option = document.createElement('option');
-        option.value = typeof c === 'string' ? c : c.name;
-        if (composersList) composersList.appendChild(option);
-    });
-
-    cities.forEach(city => {
-        const option = document.createElement('option');
-        option.value = typeof city === 'string' ? city : city.name;
-        if (citiesList) citiesList.appendChild(option);
-    });
-
-    participants.forEach(p => {
-        const option = document.createElement('option');
-        option.value = typeof p === 'string' ? p : p.name;
-        if (participantsList) participantsList.appendChild(option);
-    });
-
-    piecesMap.forEach((_, name) => {
-        const option = document.createElement('option');
-        option.value = name;
-        if (piecesList) piecesList.appendChild(option);
-    });
-
-    activities.forEach(a => {
-        const option = document.createElement('option');
-        option.value = typeof a === 'string' ? a : a.name;
-        if (activitiesList) activitiesList.appendChild(option);
-    });
-}
+// Funciones eliminadas (populateFilterLists ya no es necesaria sin datalists)
 
 // ==================== FILTROS Y CATEGORÍAS ====================
 
@@ -714,6 +665,13 @@ function applyFilters() {
             if (state.filters.gender) {
                 const genders = (item.participants || []).map(p => p.gender || '');
                 if (!genders.some(g => g.toLowerCase() === state.filters.gender.toLowerCase())) {
+                    return false;
+                }
+            }
+
+            // Filtro de lugar (venue)
+            if (state.filters.location) {
+                if (!item.venue || !item.venue.toLowerCase().includes(state.filters.location.toLowerCase())) {
                     return false;
                 }
             }
@@ -1103,7 +1061,8 @@ function clearAllFilters() {
         participant: '',
         piece: '',
         activity: '',
-        gender: ''
+        gender: '',
+        location: ''
     };
 
     if (document.getElementById('search-input')) document.getElementById('search-input').value = '';
@@ -1115,6 +1074,7 @@ function clearAllFilters() {
     if (document.getElementById('piece-filter')) document.getElementById('piece-filter').value = '';
     if (document.getElementById('activity-filter')) document.getElementById('activity-filter').value = '';
     if (document.getElementById('gender-filter')) document.getElementById('gender-filter').value = '';
+    if (document.getElementById('location-filter')) document.getElementById('location-filter').value = '';
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -1280,3 +1240,4 @@ window.exportData = exportData;
 window.refreshData = refreshData;
 window.toggleColumn = toggleColumn;
 window.toggleColumnSelector = toggleColumnSelector;
+window.toggleAdvancedFilters = toggleAdvancedFilters;
